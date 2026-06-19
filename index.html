@@ -392,7 +392,7 @@ const CONFIG = {
   maxLives: 5,
   pointsPerDodge: 100,
   comboMultiplier: 1.5,
-  lerpSpeed: 0.12,
+  keyboardSpeed: 3.5,
   spawnLeadTime: 2.0,
   minBeatInterval: 0.2,
   beatThresholdMultiplier: 1.8,
@@ -425,6 +425,7 @@ let state = {
   cameraMode: false,
   handX: 0.5,
   handDetected: false,
+  keysPressed: { left: false, right: false },
   frameCount: 0,
   lastBeatIndex: 0,
   missedBeatCount: 0,
@@ -861,7 +862,12 @@ function updateGame(dt) {
     state.lastBeatIndex++;
   }
 
-  state.ballAngle += (state.targetAngle - state.ballAngle) * CONFIG.lerpSpeed;
+  if (state.keysPressed.left) {
+    state.ballAngle -= CONFIG.keyboardSpeed * dt;
+  }
+  if (state.keysPressed.right) {
+    state.ballAngle += CONFIG.keyboardSpeed * dt;
+  }
   state.ballAngle = ((state.ballAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
   for (let i = gameObstacles.length - 1; i >= 0; i--) {
@@ -1217,13 +1223,20 @@ function render() {
 // ============================================================
 document.addEventListener('keydown', (e) => {
   if (state.gameStatus !== 'playing') return;
-  const step = 0.12;
   if (e.key === 'ArrowLeft' || e.key === 'a') {
-    state.targetAngle -= step;
+    state.keysPressed.left = true;
   } else if (e.key === 'ArrowRight' || e.key === 'd') {
-    state.targetAngle += step;
+    state.keysPressed.right = true;
   }
   state.cameraMode = false;
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') {
+    state.keysPressed.left = false;
+  } else if (e.key === 'ArrowRight' || e.key === 'd') {
+    state.keysPressed.right = false;
+  }
 });
 
 // ============================================================
@@ -1239,7 +1252,7 @@ function gameLoop(time) {
 
   if (state.cameraMode) {
     const handAngle = state.handX * Math.PI * 2;
-    state.targetAngle = state.targetAngle + (handAngle - state.targetAngle) * 0.08;
+    state.ballAngle += (handAngle - state.ballAngle) * 0.08;
   }
 
   updateGame(dt);
@@ -1305,6 +1318,7 @@ function showMenu() {
   stopCamera();
   state.cameraMode = false;
   state.handDetected = false;
+  state.keysPressed = { left: false, right: false };
 }
 
 // File input
@@ -1395,6 +1409,7 @@ function startGame() {
   state.lastBeatIndex = 0;
   state.ballAngle = Math.PI;
   state.targetAngle = Math.PI;
+  state.keysPressed = { left: false, right: false };
   gameObstacles = [];
   particleSystem.clear();
   screenShake = 0;
