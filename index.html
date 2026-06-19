@@ -551,11 +551,15 @@ function generateBeatMap(beats) {
     if (i % 8 === 0) {
       angleOrder = angleOrder.sort(() => Math.random() - 0.5);
     }
-    const angle = angleOrder[i % numAngles] + (Math.random() - 0.5) * 0.3;
-    map.push({
-      time: beats[i],
-      angle: ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2),
-    });
+    for (let j = 0; j < 3; j++) {
+      const offset = (j - 1) * 0.15;
+      const angle = angleOrder[(i * 3 + j) % numAngles] + (Math.random() - 0.5) * 0.3;
+      const timeOffset = offset * 0.05;
+      map.push({
+        time: Math.max(0, beats[i] + timeOffset),
+        angle: ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2),
+      });
+    }
   }
   return map;
 }
