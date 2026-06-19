@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaJc - Rhythm Game</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+body {
+  background: #0a0a1a;
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+canvas#gameCanvas {
+  display: block;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: #0a0a1a;
+}
+.screen {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: rgba(10,10,26,0.92);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.4s, transform 0.4s;
+}
+.screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+}
+h1 {
+  font-size: 72px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #00ff88, #ff00ff, #00ccff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 40px rgba(0,255,136,0.3));
+  margin-bottom: 10px;
+  letter-spacing: 4px;
+}
+.subtitle {
+  font-size: 18px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 40px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+}
+.btn {
+  padding: 16px 48px;
+  font-size: 20px;
+  font-weight: 700;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 8px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #00ff88, #00cc66);
+  color: #0a0a1a;
+  box-shadow: 0 0 30px rgba(0,255,136,0.3);
+}
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 50px rgba(0,255,136,0.5);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-secondary {
+  background: transparent;
+  color: #ff00ff;
+  border: 2px solid #ff00ff;
+  box-shadow: 0 0 20px rgba(255,0,255,0.2);
+}
+.btn-secondary:hover {
+  background: rgba(255,0,255,0.1);
+  box-shadow: 0 0 40px rgba(255,0,255,0.4);
+}
+.file-input-wrapper {
+  position: relative;
+  margin: 20px 0;
+}
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%; height: 100%;
+  cursor: pointer;
+}
+.file-input-label {
+  display: inline-block;
+  padding: 14px 36px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 2px dashed rgba(255,255,255,0.3);
+  border-radius: 16px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.file-input-label:hover {
+  border-color: #00ff88;
+  color: #00ff88;
+  background: rgba(0,255,136,0.05);
+}
+.file-input-label.has-file {
+  border-color: #00ff88;
+  color: #00ff88;
+  border-style: solid;
+}
+.instructions {
+  max-width: 500px;
+  text-align: center;
+  margin: 24px 0;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.instructions strong {
+  color: rgba(255,255,255,0.8);
+}
+.hud {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 20px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 5;
+  pointer-events: none;
+}
+.hud-item {
+  text-align: center;
+}
+.hud-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.4);
+}
+.hud-value {
+  font-size: 32px;
+  font-weight: 900;
+  text-shadow: 0 0 20px currentColor;
+}
+.hud-score { color: #00ff88; }
+.hud-combo { color: #ffdd00; }
+.hud-lives { color: #ff4466; }
+#cameraPreview {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  width: 200px; height: 150px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.1);
+  z-index: 5;
+  background: #000;
+}
+#cameraPreview video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+#cameraPreview canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  transform: scaleX(-1);
+}
+.camera-label {
+  position: absolute;
+  bottom: 4px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.loading-screen {
+  z-index: 20;
+}
+.loading-spinner {
+  width: 60px; height: 60px;
+  border: 4px solid rgba(255,255,255,0.1);
+  border-top: 4px solid #00ff88;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 24px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-size: 18px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 2px;
+}
+.loading-progress {
+  width: 300px; height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  margin-top: 20px;
+  overflow: hidden;
+}
+.loading-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00ff88, #ff00ff);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.calibration-screen {
+  z-index: 15;
+}
+.calibration-box {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 400px;
+  text-align: center;
+}
+.calibration-camera {
+  width: 320px; height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 16px auto;
+  background: #000;
+  border: 2px solid rgba(255,255,255,0.1);
+  position: relative;
+}
+.calibration-camera video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.calibration-camera canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  transform: scaleX(-1);
+}
+.calibration-status {
+  font-size: 14px;
+  margin: 12px 0;
+  color: rgba(255,255,255,0.6);
+}
+.calibration-status .ready {
+  color: #00ff88;
+}
+.calibration-status .waiting {
+  color: #ffdd00;
+}
+.game-over-screen {
+  z-index: 15;
+}
+.game-over-title {
+  font-size: 48px;
+  font-weight: 900;
+  color: #ff4466;
+  text-shadow: 0 0 40px rgba(255,68,102,0.5);
+  margin-bottom: 8px;
+}
+.game-over-score {
+  font-size: 64px;
+  font-weight: 900;
+  color: #00ff88;
+  text-shadow: 0 0 40px rgba(0,255,136,0.5);
+  margin-bottom: 8px;
+}
+.game-over-label {
+  font-size: 16px;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 4px;
+}
+.game-over-combo {
+  font-size: 24px;
+  color: #ffdd00;
+  margin-bottom: 30px;
+}
+.key-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  margin-top: 12px;
+  letter-spacing: 1px;
+}
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="cameraPreview">
+  <video id="previewVideo" autoplay playsinline></video>
+  <div class="camera-label">Camera</div>
+</div>
+
+<div id="menuScreen" class="screen">
+  <h1>MaJc</h1>
+  <div class="subtitle">Rhythm Game</div>
+  <div class="file-input-wrapper">
+    <input type="file" id="musicFileInput" accept="audio/mp3,audio/wav,audio/ogg,audio/*">
+    <label class="file-input-label" id="fileInputLabel">Chọn file nhạc (MP3 / WAV / FLAC)</label>
+  </div>
+  <button class="btn btn-primary" id="startBtn" disabled>Start Game</button>
+  <div class="instructions">
+    <strong>Cách chơi:</strong><br>
+    Dùng webcam điều khiển viên bi. Đưa tay trái/phải để di chuyển bi trên vòng tròn.<br>
+    Né chướng ngại vật lao ra từ tâm theo nhịp nhạc. Tích điểm và combo!<br>
+    <span style="color:rgba(255,255,255,0.3)">Fallback: Phím ← → trên bàn phím</span>
+  </div>
+</div>
+
+<div id="loadingScreen" class="screen loading-screen hidden">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Đang phân tích nhạc...</div>
+  <div class="loading-progress">
+    <div class="loading-progress-bar" id="loadingBar"></div>
+  </div>
+</div>
+
+<div id="calibrationScreen" class="screen calibration-screen hidden">
+  <div class="calibration-box">
+    <h2 style="font-size:24px;margin-bottom:8px;color:#00ff88;">Calibration</h2>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;margin-bottom:12px;">
+      Đưa tay vào khung hình để kiểm tra nhận diện
+    </p>
+    <div class="calibration-camera" id="calibrationCameraContainer">
+      <video id="calibrationVideo" autoplay playsinline></video>
+    </div>
+    <div class="calibration-status" id="calibrationStatus">
+      <span class="waiting">Đang chờ camera...</span>
+    </div>
+    <button class="btn btn-primary" id="calibrationReadyBtn" disabled>Sẵn sàng!</button>
+    <div style="margin-top:8px;">
+      <button class="btn btn-secondary" id="calibrationSkipBtn" style="padding:8px 24px;font-size:14px;">Bỏ qua (dùng phím)</button>
+    </div>
+  </div>
+</div>
+
+<div id="gameOverScreen" class="screen game-over-screen hidden">
+  <div class="game-over-title">GAME OVER</div>
+  <div class="game-over-label">Điểm số</div>
+  <div class="game-over-score" id="finalScore">0</div>
+  <div class="game-over-combo" id="finalCombo">Combo cao nhất: 0</div>
+  <div>
+    <button class="btn btn-primary" id="replayBtn">Chơi lại</button>
+    <button class="btn btn-secondary" id="menuBtn">Chọn nhạc khác</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+
+<script>
+(function() {
+'use strict';
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const CONFIG = {
+  orbitRadius: 280,
+  ballRadius: 14,
+  obstacleRadius: 10,
+  obstacleSpeed: 180,
+  hitTolerance: 0.25,
+  maxLives: 5,
+  pointsPerDodge: 100,
+  comboMultiplier: 1.5,
+  lerpSpeed: 0.12,
+  spawnLeadTime: 2.0,
+  minBeatInterval: 0.2,
+  beatThresholdMultiplier: 1.8,
+  frameSize: 2048,
+  hopSize: 1024,
+  defaultAudio: './Exit%20Sign.flac',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  screen: 'menu',
+  audioBuffer: null,
+  beats: [],
+  beatMap: [],
+  audioSource: null,
+  audioContext: null,
+  isPlaying: false,
+  startTime: 0,
+  ballAngle: Math.PI,
+  targetAngle: Math.PI,
+  obstacles: [],
+  particles: [],
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  lives: CONFIG.maxLives,
+  gameStatus: 'idle',
+  cameraMode: false,
+  handX: 0.5,
+  handDetected: false,
+  frameCount: 0,
+  lastBeatIndex: 0,
+  missedBeatCount: 0,
+  calibrating: false,
+};
+
+// ============================================================
+// DOM REFS
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const menuScreen = document.getElementById('menuScreen');
+const loadingScreen = document.getElementById('loadingScreen');
+const calibrationScreen = document.getElementById('calibrationScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const musicFileInput = document.getElementById('musicFileInput');
+const fileInputLabel = document.getElementById('fileInputLabel');
+const startBtn = document.getElementById('startBtn');
+const loadingBar = document.getElementById('loadingBar');
+const calibrationStatus = document.getElementById('calibrationStatus');
+const calibrationReadyBtn = document.getElementById('calibrationReadyBtn');
+const calibrationSkipBtn = document.getElementById('calibrationSkipBtn');
+const finalScore = document.getElementById('finalScore');
+const finalCombo = document.getElementById('finalCombo');
+const replayBtn = document.getElementById('replayBtn');
+const menuBtn = document.getElementById('menuBtn');
+const previewVideo = document.getElementById('previewVideo');
+const calibrationVideo = document.getElementById('calibrationVideo');
+
+// ============================================================
+// CANVAS SIZING
+// ============================================================
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ============================================================
+// BEAT DETECTION
+// ============================================================
+function detectBeats(audioBuffer) {
+  const channelData = audioBuffer.getChannelData(0);
+  const sampleRate = audioBuffer.sampleRate;
+  const frameSize = CONFIG.frameSize;
+  const hopSize = CONFIG.hopSize;
+  const numFrames = Math.max(1, Math.floor((channelData.length - frameSize) / hopSize));
+
+  const energies = new Float32Array(numFrames);
+  for (let i = 0; i < numFrames; i++) {
+    const offset = i * hopSize;
+    let sum = 0;
+    for (let j = 0; j < frameSize; j++) {
+      const s = channelData[offset + j];
+      sum += s * s;
+    }
+    energies[i] = Math.sqrt(sum / frameSize);
+  }
+
+  const onsetStrength = new Float32Array(numFrames);
+  for (let i = 1; i < numFrames; i++) {
+    onsetStrength[i] = Math.max(0, energies[i] - energies[i - 1]);
+  }
+
+  let sum = 0, count = 0;
+  for (let i = 0; i < numFrames; i++) {
+    if (onsetStrength[i] > 0) { sum += onsetStrength[i]; count++; }
+  }
+  const mean = count > 0 ? sum / count : 0;
+  let variance = 0;
+  for (let i = 0; i < numFrames; i++) {
+    const d = onsetStrength[i] - mean;
+    variance += d * d;
+  }
+  variance /= numFrames;
+  const std = Math.sqrt(variance);
+  const threshold = mean + CONFIG.beatThresholdMultiplier * Math.max(std, 0.001);
+
+  const beats = [];
+  const minFrames = Math.floor(CONFIG.minBeatInterval * sampleRate / hopSize);
+  let lastBeatFrame = -minFrames;
+
+  for (let i = 1; i < numFrames - 1; i++) {
+    if (onsetStrength[i] > threshold &&
+        onsetStrength[i] >= onsetStrength[i - 1] &&
+        onsetStrength[i] > onsetStrength[i + 1] &&
+        (i - lastBeatFrame) >= minFrames) {
+      const time = (i * hopSize) / sampleRate;
+      if (time > 0.1) {
+        beats.push(time);
+        lastBeatFrame = i;
+      }
+    }
+  }
+
+  if (beats.length < 5) {
+    const fallback = [];
+    const duration = audioBuffer.duration;
+    const bpm = 120;
+    const interval = 60 / bpm;
+    for (let t = interval; t < duration - 0.5; t += interval) {
+      fallback.push(t);
+    }
+    return fallback;
+  }
+
+  return beats;
+}
+
+// ============================================================
+// BEAT MAP GENERATION
+// ============================================================
+function generateBeatMap(beats) {
+  const map = [];
+  let angleOrder = [];
+  const numAngles = 8;
+  for (let i = 0; i < numAngles; i++) {
+    angleOrder.push((i / numAngles) * Math.PI * 2);
+  }
+
+  for (let i = 0; i < beats.length; i++) {
+    if (i % 8 === 0) {
+      angleOrder = angleOrder.sort(() => Math.random() - 0.5);
+    }
+    const angle = angleOrder[i % numAngles] + (Math.random() - 0.5) * 0.3;
+    map.push({
+      time: beats[i],
+      angle: ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2),
+    });
+  }
+  return map;
+}
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioContext = null;
+
+function getAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+async function loadAndAnalyzeMusic(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const ctx = getAudioContext();
+  const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+  const totalFrames = Math.floor(audioBuffer.length / CONFIG.hopSize);
+  let processed = 0;
+
+  const fakeProgress = setInterval(() => {
+    processed = Math.min(processed + 3, totalFrames);
+    const pct = Math.min(100, (processed / totalFrames) * 100);
+    loadingBar.style.width = pct + '%';
+  }, 50);
+
+  const beats = await new Promise((resolve) => {
+    setTimeout(() => {
+      const result = detectBeats(audioBuffer);
+      resolve(result);
+    }, 50);
+  });
+
+  clearInterval(fakeProgress);
+  loadingBar.style.width = '100%';
+
+  const beatMap = generateBeatMap(beats);
+  return { audioBuffer, beats, beatMap };
+}
+
+function startAudio(audioBuffer, startTime) {
+  const ctx = getAudioContext();
+  if (state.audioSource) {
+    try { state.audioSource.stop(); } catch(e) {}
+  }
+  state.audioSource = ctx.createBufferSource();
+  state.audioSource.buffer = audioBuffer;
+  state.audioSource.connect(ctx.destination);
+  state.audioSource.start(0, startTime);
+  state.startTime = ctx.currentTime - startTime;
+  state.isPlaying = true;
+}
+
+function stopAudio() {
+  if (state.audioSource) {
+    try { state.audioSource.stop(); } catch(e) {}
+    state.audioSource = null;
+  }
+  state.isPlaying = false;
+}
+
+function getCurrentTime() {
+  if (!audioContext || !state.isPlaying) return 0;
+  return audioContext.currentTime - state.startTime;
+}
+
+// ============================================================
+// CAMERA CONTROLLER
+// ============================================================
+let hands = null;
+let camera = null;
+let cameraActive = false;
+let cameraStream = null;
+
+async function initCamera(videoElement, callback) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+    videoElement.srcObject = stream;
+    cameraStream = stream;
+    await videoElement.play();
+    cameraActive = true;
+
+    hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
+      }
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 0,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5,
+    });
+
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const wrist = landmarks[0];
+        const indexTip = landmarks[8];
+        const midMCP = landmarks[9];
+        const x = midMCP ? midMCP.x : wrist.x;
+        state.handX = Math.max(0, Math.min(1, x));
+        state.handDetected = true;
+
+        if (callback) callback(results);
+
+        const previewCanvas = document.querySelector('#cameraPreview canvas');
+        if (previewCanvas) {
+          const pctx = previewCanvas.getContext('2d');
+          pctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+          drawConnectors(pctx, landmarks, HAND_CONNECTIONS, { color: '#00ff88', lineWidth: 2 });
+          for (const lm of landmarks) {
+            const cx = lm.x * previewCanvas.width;
+            const cy = lm.y * previewCanvas.height;
+            pctx.beginPath();
+            pctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            pctx.fillStyle = '#ff00ff';
+            pctx.fill();
+            pctx.shadowColor = '#ff00ff';
+            pctx.shadowBlur = 10;
+            pctx.beginPath();
+            pctx.arc(cx, cy, 8, 0, Math.PI * 2);
+            pctx.strokeStyle = 'rgba(255,0,255,0.4)';
+            pctx.lineWidth = 1;
+            pctx.stroke();
+            pctx.shadowBlur = 0;
+          }
+        }
+      } else {
+        state.handDetected = false;
+      }
+    });
+
+    camera = new Camera(videoElement, {
+      onFrame: async () => {
+        try {
+          await hands.send({ image: videoElement });
+        } catch(e) {}
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start().catch(() => {});
+
+    return true;
+  } catch (err) {
+    console.warn('Camera init failed:', err);
+    cameraActive = false;
+    state.cameraMode = false;
+    return false;
+  }
+}
+
+function stopCamera() {
+  if (camera) {
+    try { camera.stop(); } catch(e) {}
+    camera = null;
+  }
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  cameraActive = false;
+  hands = null;
+}
+
+// ============================================================
+// PARTICLE SYSTEM
+// ============================================================
+class Particle {
+  constructor(x, y, color, type) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.type = type;
+    this.life = 1;
+    this.decay = 0.015 + Math.random() * 0.02;
+    this.size = 2 + Math.random() * 4;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 80 + Math.random() * 160;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.gravity = type === 'hit' ? -20 : 40;
+  }
+
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vy += this.gravity * dt;
+    this.life -= this.decay;
+    this.size *= 0.995;
+  }
+
+  draw(ctx) {
+    const alpha = Math.max(0, this.life);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, Math.max(0.5, this.size), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+class ParticleSystem {
+  constructor() {
+    this.particles = [];
+  }
+
+  emit(x, y, count, color, type) {
+    for (let i = 0; i < count; i++) {
+      this.particles.push(new Particle(x, y, color, type));
+    }
+  }
+
+  update(dt) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      this.particles[i].update(dt);
+      if (this.particles[i].life <= 0) {
+        this.particles.splice(i, 1);
+      }
+    }
+  }
+
+  draw(ctx) {
+    for (const p of this.particles) {
+      p.draw(ctx);
+    }
+  }
+
+  clear() {
+    this.particles = [];
+  }
+}
+
+const particleSystem = new ParticleSystem();
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+let gameObstacles = [];
+let gameParticles = [];
+let obstacleIdCounter = 0;
+let screenShake = 0;
+let beatPulse = 0;
+
+function spawnObstacle(beatMapItem) {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const spawnRadius = -30;
+  gameObstacles.push({
+    id: obstacleIdCounter++,
+    angle: beatMapItem.angle,
+    radius: spawnRadius,
+    speed: CONFIG.obstacleSpeed,
+    active: true,
+    scored: false,
+    hit: false,
+  });
+}
+
+function getBallPosition() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const angle = state.ballAngle;
+  return {
+    x: cx + Math.cos(angle) * CONFIG.orbitRadius,
+    y: cy + Math.sin(angle) * CONFIG.orbitRadius,
+  };
+}
+
+function getObstaclePosition(obs) {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  return {
+    x: cx + Math.cos(obs.angle) * obs.radius,
+    y: cy + Math.sin(obs.angle) * obs.radius,
+  };
+}
+
+function angleDiff(a, b) {
+  let d = Math.abs(a - b);
+  if (d > Math.PI) d = Math.PI * 2 - d;
+  return d;
+}
+
+function updateGame(dt) {
+  if (state.gameStatus !== 'playing') return;
+  if (!state.isPlaying) return;
+
+  const currentTime = getCurrentTime();
+
+  while (state.lastBeatIndex < state.beatMap.length &&
+         state.beatMap[state.lastBeatIndex].time <= currentTime + CONFIG.spawnLeadTime) {
+    spawnObstacle(state.beatMap[state.lastBeatIndex]);
+    state.lastBeatIndex++;
+  }
+
+  state.ballAngle += (state.targetAngle - state.ballAngle) * CONFIG.lerpSpeed;
+  state.ballAngle = ((state.ballAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+
+  for (let i = gameObstacles.length - 1; i >= 0; i--) {
+    const obs = gameObstacles[i];
+    if (!obs.active) {
+      gameObstacles.splice(i, 1);
+      continue;
+    }
+
+    obs.radius += obs.speed * dt;
+
+    if (obs.radius >= CONFIG.orbitRadius && !obs.scored && !obs.hit) {
+      const diff = angleDiff(obs.angle, state.ballAngle);
+      if (diff < CONFIG.hitTolerance) {
+        obs.hit = true;
+        obs.active = false;
+        state.lives--;
+        state.combo = 0;
+        screenShake = 0.3;
+
+        const pos = getBallPosition();
+        particleSystem.emit(pos.x, pos.y, 30, '#ff4466', 'hit');
+        particleSystem.emit(pos.x, pos.y, 15, '#ff8800', 'hit');
+
+        if (state.lives <= 0) {
+          state.gameStatus = 'gameover';
+          stopAudio();
+          showGameOver();
+        }
+      } else {
+        obs.scored = true;
+        state.combo++;
+        if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+        const multiplier = 1 + (state.combo - 1) * (CONFIG.comboMultiplier - 1);
+        const points = Math.round(CONFIG.pointsPerDodge * multiplier);
+        state.score += points;
+
+        const pos = getBallPosition();
+        particleSystem.emit(pos.x, pos.y, 15, '#00ff88', 'dodge');
+        particleSystem.emit(pos.x, pos.y, 8, '#00ccff', 'dodge');
+      }
+    }
+
+    if (obs.radius > Math.max(canvas.width, canvas.height) * 0.7) {
+      obs.active = false;
+    }
+  }
+
+  particleSystem.update(dt);
+
+  if (screenShake > 0) screenShake = Math.max(0, screenShake - dt);
+
+  if (beatPulse > 0) beatPulse = Math.max(0, beatPulse - dt * 2);
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function drawBackground() {
+  for (let i = 0; i < 80; i++) {
+    const x = ((i * 137.5 + 50) % canvas.width);
+    const y = ((i * 97.3 + 30) % canvas.height);
+    const brightness = 0.2 + ((i * 0.01) % 0.3);
+    ctx.fillStyle = `rgba(255,255,255,${brightness})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 0.5 + (i % 2), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawOrbit() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
+  ctx.save();
+  ctx.shadowColor = '#00ff88';
+  ctx.shadowBlur = 20;
+  ctx.strokeStyle = 'rgba(0,255,136,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, CONFIG.orbitRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.shadowBlur = 40;
+  ctx.strokeStyle = 'rgba(0,255,136,0.08)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(cx, cy, CONFIG.orbitRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const inner = CONFIG.orbitRadius - 8;
+    const outer = CONFIG.orbitRadius + 8;
+    ctx.strokeStyle = `rgba(0,255,136,${i % 4 === 0 ? 0.3 : 0.1})`;
+    ctx.lineWidth = i % 4 === 0 ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+    ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer);
+    ctx.stroke();
+  }
+}
+
+function drawObstacles() {
+  for (const obs of gameObstacles) {
+    if (!obs.active) continue;
+    const pos = getObstaclePosition(obs);
+    const sizeFactor = Math.max(0.3, Math.min(1, obs.radius / CONFIG.orbitRadius));
+    const r = CONFIG.obstacleRadius * sizeFactor;
+
+    ctx.save();
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur = 25;
+
+    const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, r * 2);
+    gradient.addColorStop(0, '#ff6644');
+    gradient.addColorStop(0.5, '#ff4400');
+    gradient.addColorStop(1, 'rgba(255,68,0,0)');
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r * 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#ff4400';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = 'rgba(255,200,100,0.6)';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawBall() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const angle = state.ballAngle;
+  const bx = cx + Math.cos(angle) * CONFIG.orbitRadius;
+  const by = cy + Math.sin(angle) * CONFIG.orbitRadius;
+
+  for (let i = 1; i <= 6; i++) {
+    const t = i * 0.05;
+    const trailAngle = state.ballAngle - t * 3;
+    const tx = cx + Math.cos(trailAngle) * CONFIG.orbitRadius;
+    const ty = cy + Math.sin(trailAngle) * CONFIG.orbitRadius;
+    const alpha = 0.2 - i * 0.03;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 20 - i * 2;
+    ctx.fillStyle = '#ff00ff';
+    ctx.beginPath();
+    ctx.arc(tx, ty, CONFIG.ballRadius * (1 - i * 0.1) * (0.8 + beatPulse * 0.2), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.shadowColor = '#ff00ff';
+  ctx.shadowBlur = 40 + beatPulse * 20;
+  const gradient = ctx.createRadialGradient(bx, by, 0, bx, by, CONFIG.ballRadius * 2.5);
+  gradient.addColorStop(0, '#ff88ff');
+  gradient.addColorStop(0.4, '#ff00ff');
+  gradient.addColorStop(0.7, 'rgba(255,0,255,0.3)');
+  gradient.addColorStop(1, 'rgba(255,0,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(bx, by, CONFIG.ballRadius * 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 25;
+  ctx.fillStyle = '#ff00ff';
+  ctx.beginPath();
+  ctx.arc(bx, by, CONFIG.ballRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.arc(bx - CONFIG.ballRadius * 0.3, by - CONFIG.ballRadius * 0.3, CONFIG.ballRadius * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHUD() {
+  ctx.save();
+
+  ctx.shadowColor = '#00ff88';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 36px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(Math.floor(state.score).toLocaleString(), 30, 55);
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(0,255,136,0.4)';
+  ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE', 30, 75);
+
+  if (state.combo > 1) {
+    const comboX = canvas.width / 2;
+    ctx.shadowColor = '#ffdd00';
+    ctx.shadowBlur = 30 + beatPulse * 15;
+    ctx.fillStyle = '#ffdd00';
+    ctx.font = `bold ${28 + beatPulse * 8}px "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${state.combo}x`, comboX, 50);
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,221,0,0.4)';
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('COMBO', comboX, 70);
+  }
+
+  const livesX = canvas.width - 30;
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < CONFIG.maxLives; i++) {
+    const lx = livesX - i * 30;
+    ctx.fillStyle = i < state.lives ? '#ff4466' : 'rgba(255,68,102,0.15)';
+    ctx.shadowColor = i < state.lives ? '#ff4466' : 'transparent';
+    ctx.shadowBlur = i < state.lives ? 15 : 0;
+    ctx.beginPath();
+    ctx.arc(lx, 40, 9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  const elapsed = state.beatMap.length > 0 ? getCurrentTime() : 0;
+  const totalBeats = state.beatMap.length;
+  const currentBeat = state.lastBeatIndex;
+  if (totalBeats > 0) {
+    const progress = Math.min(1, currentBeat / totalBeats);
+    const barX = 30;
+    const barY = canvas.height - 30;
+    const barW = canvas.width - 60;
+    const barH = 3;
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = 'rgba(0,255,136,0.3)';
+    ctx.fillRect(barX, barY, barW * progress, barH);
+  }
+
+  ctx.restore();
+}
+
+function drawCenterGlow(currentTime) {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const pulse = 0.5 + 0.5 * Math.sin(currentTime * 2);
+  ctx.save();
+  ctx.globalAlpha = 0.05 + pulse * 0.05;
+  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, CONFIG.orbitRadius * 0.8);
+  gradient.addColorStop(0, '#00ff88');
+  gradient.addColorStop(0.5, '#00ff88');
+  gradient.addColorStop(1, 'rgba(0,255,136,0)');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(cx, cy, CONFIG.orbitRadius * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawConnectionLines() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,255,136,0.04)';
+  ctx.lineWidth = 1;
+  for (const obs of gameObstacles) {
+    if (!obs.active) continue;
+    const pos = getObstaclePosition(obs);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function render() {
+  const currentTime = getCurrentTime();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+
+  if (screenShake > 0) {
+    const shakeAmt = screenShake * 12;
+    ctx.translate(
+      (Math.random() - 0.5) * shakeAmt,
+      (Math.random() - 0.5) * shakeAmt
+    );
+  }
+
+  drawBackground();
+  drawConnectionLines();
+  drawCenterGlow(currentTime);
+  drawOrbit();
+  drawObstacles();
+  drawBall();
+
+  particleSystem.draw(ctx);
+
+  drawHUD();
+
+  if (state.cameraMode && state.handDetected) {
+    ctx.save();
+    ctx.fillStyle = '#00ff88';
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(40, canvas.height - 60, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,255,136,0.3)';
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('CAM', 52, canvas.height - 56);
+    ctx.restore();
+  } else if (state.cameraMode && !state.handDetected) {
+    ctx.save();
+    ctx.fillStyle = '#ffdd00';
+    ctx.shadowColor = '#ffdd00';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(40, canvas.height - 60, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,221,0,0.3)';
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('WAIT', 52, canvas.height - 56);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('KEYS', 30, canvas.height - 60);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// KEYBOARD CONTROLS (FALLBACK)
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (state.gameStatus !== 'playing') return;
+  const step = 0.12;
+  if (e.key === 'ArrowLeft' || e.key === 'a') {
+    state.targetAngle -= step;
+  } else if (e.key === 'ArrowRight' || e.key === 'd') {
+    state.targetAngle += step;
+  }
+  state.cameraMode = false;
+});
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+let lastTime = 0;
+
+function gameLoop(time) {
+  const dt = Math.min(0.05, (time - lastTime) / 1000);
+  lastTime = time;
+
+  beatPulse = Math.max(0, beatPulse - dt * 3);
+
+  if (state.cameraMode) {
+    const handAngle = state.handX * Math.PI * 2;
+    state.targetAngle = state.targetAngle + (handAngle - state.targetAngle) * 0.08;
+  }
+
+  updateGame(dt);
+  render();
+
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+
+// ============================================================
+// UI FUNCTIONS
+// ============================================================
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(screenId).classList.remove('hidden');
+}
+
+function showLoading() {
+  showScreen('loadingScreen');
+  loadingBar.style.width = '0%';
+}
+
+function showCalibration() {
+  showScreen('calibrationScreen');
+  calibrationReadyBtn.disabled = true;
+  calibrationStatus.innerHTML = '<span class="waiting">Đang chờ camera...</span>';
+  initCalibrationCamera();
+}
+
+function showGame() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  state.gameStatus = 'playing';
+  resizeCanvas();
+}
+
+function showGameOver() {
+  state.gameStatus = 'gameover';
+  finalScore.textContent = Math.floor(state.score).toLocaleString();
+  finalCombo.textContent = `Combo cao nhất: ${state.maxCombo}x`;
+  showScreen('gameOverScreen');
+  stopCamera();
+}
+
+function showMenu() {
+  showScreen('menuScreen');
+  state.gameStatus = 'idle';
+  gameObstacles = [];
+  particleSystem.clear();
+  state.score = 0;
+  state.combo = 0;
+  state.maxCombo = 0;
+  state.lives = CONFIG.maxLives;
+  state.lastBeatIndex = 0;
+  state.ballAngle = Math.PI;
+  state.targetAngle = Math.PI;
+  state.isPlaying = false;
+  state.beatMap = [];
+  state.beats = [];
+  state.audioBuffer = null;
+  loadingBar.style.width = '0%';
+  stopAudio();
+  stopCamera();
+  state.cameraMode = false;
+  state.handDetected = false;
+}
+
+// File input
+musicFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  fileInputLabel.textContent = file.name;
+  fileInputLabel.classList.add('has-file');
+  startBtn.disabled = true;
+  startBtn.textContent = 'Analyzing...';
+
+  showLoading();
+
+  try {
+    const result = await loadAndAnalyzeMusic(file);
+    state.audioBuffer = result.audioBuffer;
+    state.beats = result.beats;
+    state.beatMap = result.beatMap;
+
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start Game';
+    showScreen('menuScreen');
+  } catch (err) {
+    console.error('Analysis failed:', err);
+    startBtn.textContent = 'Failed - Try Again';
+    showScreen('menuScreen');
+  }
+});
+
+// Start button
+startBtn.addEventListener('click', async () => {
+  if (!state.audioBuffer || state.beatMap.length === 0) return;
+
+  showCalibration();
+});
+
+// Calibration
+async function initCalibrationCamera() {
+  calibrationReadyBtn.disabled = true;
+  calibrationStatus.innerHTML = '<span class="waiting">Đang xin quyền camera...</span>';
+
+  const hasCamera = await initCamera(calibrationVideo, (results) => {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+      calibrationReadyBtn.disabled = false;
+      calibrationStatus.innerHTML = '<span class="ready">Đã phát hiện tay! Nhấn "Sẵn sàng!" để bắt đầu.</span>';
+    } else {
+      calibrationReadyBtn.disabled = true;
+      calibrationStatus.innerHTML = '<span class="waiting">Đưa tay vào khung hình...</span>';
+    }
+  });
+
+  if (!hasCamera) {
+    calibrationStatus.innerHTML = '<span style="color:#ff4466;">Không tìm thấy camera. Dùng phím ← → để chơi.</span>';
+    calibrationReadyBtn.disabled = false;
+    calibrationReadyBtn.textContent = 'Tiếp tục (không camera)';
+    state.cameraMode = false;
+  } else {
+    state.cameraMode = true;
+    calibrationReadyBtn.textContent = 'Sẵn sàng!';
+  }
+}
+
+calibrationReadyBtn.addEventListener('click', () => {
+  if (state.cameraMode && calibrationVideo.srcObject) {
+    initCamera(previewVideo, null);
+  }
+  startGame();
+});
+
+calibrationSkipBtn.addEventListener('click', () => {
+  stopCamera();
+  state.cameraMode = false;
+  startGame();
+});
+
+function startGame() {
+  stopCamera();
+  if (calibrationVideo.srcObject) {
+    calibrationVideo.srcObject.getTracks().forEach(t => t.stop());
+    calibrationVideo.srcObject = null;
+  }
+
+  state.score = 0;
+  state.combo = 0;
+  state.maxCombo = 0;
+  state.lives = CONFIG.maxLives;
+  state.lastBeatIndex = 0;
+  state.ballAngle = Math.PI;
+  state.targetAngle = Math.PI;
+  gameObstacles = [];
+  particleSystem.clear();
+  screenShake = 0;
+
+  startAudio(state.audioBuffer, 0);
+  showGame();
+}
+
+// Game over buttons
+replayBtn.addEventListener('click', () => {
+  startGame();
+});
+
+menuBtn.addEventListener('click', () => {
+  showMenu();
+});
+
+// ============================================================
+// AUTO-LOAD DEFAULT AUDIO
+// ============================================================
+async function loadDefaultAudio() {
+  try {
+    const response = await fetch(CONFIG.defaultAudio);
+    if (!response.ok) return;
+    const blob = await response.blob();
+    const file = new File([blob], 'Exit Sign.flac', { type: 'audio/flac' });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    musicFileInput.files = dataTransfer.files;
+    const event = new Event('change', { bubbles: true });
+    musicFileInput.dispatchEvent(event);
+  } catch (e) {
+    console.log('Default audio not available, use file picker');
+  }
+}
+
+loadDefaultAudio();
+
+// ============================================================
+// RESIZE HANDLING
+// ============================================================
+window.addEventListener('resize', () => {
+  resizeCanvas();
+});
+
+// ============================================================
+// CONSOLE INFO
+// ============================================================
+console.log('🎵 MaJc Rhythm Game');
+console.log('📷 Controls: Camera (MediaPipe Hands) or ← → keys');
+
+})();
+</script>
+</body>
+</html>
