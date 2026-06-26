@@ -315,6 +315,7 @@ h1 {
 
 <div id="cameraPreview">
   <video id="previewVideo" autoplay playsinline></video>
+  <canvas></canvas>
   <div class="camera-label">Camera</div>
 </div>
 
@@ -350,6 +351,7 @@ h1 {
     </p>
     <div class="calibration-camera" id="calibrationCameraContainer">
       <video id="calibrationVideo" autoplay playsinline></video>
+      <canvas></canvas>
     </div>
     <div class="calibration-status" id="calibrationStatus">
       <span class="waiting">Đang chờ camera...</span>
@@ -551,12 +553,12 @@ function generateBeatMap(beats) {
     if (i % 8 === 0) {
       angleOrder = angleOrder.sort(() => Math.random() - 0.5);
     }
-    for (let j = 0; j < 3; j++) {
-      const offset = (j - 1) * 0.15;
-      const angle = angleOrder[(i * 3 + j) % numAngles] + (Math.random() - 0.5) * 0.3;
-      const timeOffset = offset * 0.05;
+    // Only spawn 1 or 2 obstacles per beat to keep it playable
+    const count = (i % 4 === 0) ? 2 : 1;
+    for (let j = 0; j < count; j++) {
+      const angle = angleOrder[(i * 2 + j) % numAngles] + (Math.random() - 0.5) * 0.2;
       map.push({
-        time: Math.max(0, beats[i] + timeOffset),
+        time: beats[i],
         angle: ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2),
       });
     }
@@ -640,25 +642,32 @@ let cameraStream = null;
 
 async function initCamera(videoElement, callback) {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
-    videoElement.srcObject = stream;
-    cameraStream = stream;
-    await videoElement.play();
+    if (!cameraStream) {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+    }
+
+    if (videoElement.srcObject !== cameraStream) {
+      videoElement.srcObject = cameraStream;
+      await videoElement.play();
+    }
     cameraActive = true;
 
-    hands = new Hands({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
-      }
-    });
+    if (!hands) {
+      hands = new Hands({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
+        }
+      });
 
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 0,
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.5,
-    });
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 0,
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.5,
+      });
+    }
 
+    // Always update results callback to use current UI context if needed
     hands.onResults((results) => {
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmarks = results.multiHandLandmarks[0];
@@ -671,14 +680,18 @@ async function initCamera(videoElement, callback) {
 
         if (callback) callback(results);
 
-        const previewCanvas = document.querySelector('#cameraPreview canvas');
-        if (previewCanvas) {
-          const pctx = previewCanvas.getContext('2d');
-          pctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        const canvasElement = videoElement.parentElement.querySelector('canvas');
+        if (canvasElement) {
+          if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+          }
+          const pctx = canvasElement.getContext('2d');
+          pctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
           drawConnectors(pctx, landmarks, HAND_CONNECTIONS, { color: '#00ff88', lineWidth: 2 });
           for (const lm of landmarks) {
-            const cx = lm.x * previewCanvas.width;
-            const cy = lm.y * previewCanvas.height;
+            const cx = lm.x * canvasElement.width;
+            const cy = lm.y * canvasElement.height;
             pctx.beginPath();
             pctx.arc(cx, cy, 4, 0, Math.PI * 2);
             pctx.fillStyle = '#ff00ff';
@@ -1256,7 +1269,10 @@ function gameLoop(time) {
 
   if (state.cameraMode) {
     const handAngle = state.handX * Math.PI * 2;
-    state.ballAngle += (handAngle - state.ballAngle) * 0.08;
+    let diff = handAngle - state.ballAngle;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    state.ballAngle += diff * 0.12;
   }
 
   updateGame(dt);
@@ -1386,9 +1402,9 @@ async function initCalibrationCamera() {
   }
 }
 
-calibrationReadyBtn.addEventListener('click', () => {
+calibrationReadyBtn.addEventListener('click', async () => {
   if (state.cameraMode && calibrationVideo.srcObject) {
-    initCamera(previewVideo, null);
+    await initCamera(previewVideo, null);
   }
   startGame();
 });
@@ -1400,8 +1416,11 @@ calibrationSkipBtn.addEventListener('click', () => {
 });
 
 function startGame() {
-  stopCamera();
-  if (calibrationVideo.srcObject) {
+  if (!state.cameraMode) {
+    stopCamera();
+  }
+
+  if (calibrationVideo.srcObject && (!state.cameraMode || calibrationVideo.srcObject !== previewVideo.srcObject)) {
     calibrationVideo.srcObject.getTracks().forEach(t => t.stop());
     calibrationVideo.srcObject = null;
   }
