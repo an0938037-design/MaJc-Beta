@@ -625,8 +625,7 @@ function getTime() {
 let hands = null;
 let camera = null;
 let cameraStream = null;
-let gestureHistory = {};
-let lastLaneState = {};
+let handState = {};
 
 function stopCamera() {
   if (camera) { try { camera.stop(); } catch (e) {} camera = null; }
@@ -657,8 +656,24 @@ async function initCamera(videoEl, callback) {
       minTrackingConfidence: 0.15,
     });
 
-    function getGesture(lm) {
-      return (lm[8].y >= lm[6].y) && (lm[12].y >= lm[10].y) ? 'fist' : 'open';
+    function getStableGesture(lm, hIdx) {
+      if (!handState[hIdx]) handState[hIdx] = { gesture: 'open', zone: 'left' };
+      const s = handState[hIdx];
+
+      const indexCurl = lm[8].y - lm[6].y;
+      const middleCurl = lm[12].y - lm[10].y;
+      const avgCurl = (indexCurl + middleCurl) / 2;
+
+      const curlThreshold = 0.04;
+      if (s.gesture === 'open' && avgCurl > curlThreshold) s.gesture = 'fist';
+      else if (s.gesture === 'fist' && avgCurl < -curlThreshold) s.gesture = 'open';
+
+      const mirroredX = 1 - lm[0].x;
+      const zoneMargin = 0.08;
+      if (s.zone === 'left' && mirroredX > 0.5 + zoneMargin) s.zone = 'right';
+      else if (s.zone === 'right' && mirroredX < 0.5 - zoneMargin) s.zone = 'left';
+
+      return s;
     }
 
     h.onResults(results => {
@@ -668,13 +683,10 @@ async function initCamera(videoEl, callback) {
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
           const lm = results.multiHandLandmarks[hIdx];
-          const wrist = lm[0];
-          if (!wrist) continue;
+          if (!lm[0]) continue;
 
-          const mirroredX = 1 - wrist.x;
-          const zone = mirroredX < 0.5 ? 'left' : 'right';
-          const gesture = getGesture(lm);
-          const lane = zone === 'left' ? (gesture === 'fist' ? 0 : 1) : (gesture === 'fist' ? 2 : 3);
+          const s = getStableGesture(lm, hIdx);
+          const lane = s.zone === 'left' ? (s.gesture === 'fist' ? 0 : 1) : (s.gesture === 'fist' ? 2 : 3);
 
           state.handLanes.push(lane);
           state.coveredLanes.add(lane);
@@ -690,9 +702,9 @@ async function initCamera(videoEl, callback) {
         pctx.clearRect(0, 0, cw, ch);
 
         pctx.fillStyle = 'rgba(255,255,255,0.05)';
-        pctx.fillRect(0, 0, cw / 2, ch);
-        pctx.fillStyle = 'rgba(255,255,255,0.03)';
         pctx.fillRect(cw / 2, 0, cw / 2, ch);
+        pctx.fillStyle = 'rgba(255,255,255,0.03)';
+        pctx.fillRect(0, 0, cw / 2, ch);
 
         pctx.strokeStyle = 'rgba(255,255,255,0.15)';
         pctx.lineWidth = 1;
@@ -705,9 +717,7 @@ async function initCamera(videoEl, callback) {
           for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
             const lm = results.multiHandLandmarks[hIdx];
             const color = hIdx === 0 ? '#ffd93d' : '#6bcb77';
-            const mirroredX = 1 - lm[0].x;
-            const zone = mirroredX < 0.5 ? 'left' : 'right';
-            const gesture = getGesture(lm);
+            const s = getStableGesture(lm, hIdx);
 
             drawConnectors(pctx, lm, HAND_CONNECTIONS, { color, lineWidth: 1.5 });
             for (const p of lm) {
@@ -717,8 +727,8 @@ async function initCamera(videoEl, callback) {
               pctx.fill();
             }
 
-            const gestureLabel = gesture === 'fist' ? 'NẮM' : 'MỞ';
-            const laneNum = zone === 'left' ? (gesture === 'fist' ? 'L1' : 'L2') : (gesture === 'fist' ? 'L3' : 'L4');
+            const gestureLabel = s.gesture === 'fist' ? 'NẮM' : 'MỞ';
+            const laneNum = s.zone === 'left' ? (s.gesture === 'fist' ? 'L1' : 'L2') : (s.gesture === 'fist' ? 'L3' : 'L4');
             pctx.fillStyle = color;
             pctx.font = 'bold 12px "Segoe UI", system-ui, sans-serif';
             pctx.textAlign = 'center';
