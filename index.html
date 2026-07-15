@@ -1240,20 +1240,19 @@ function showMenu() {
   state.misses = 0;
   state.hitNotes = 0;
   state.isPlaying = false;
-  state.audioBuffer = null;
   state.nextNoteIndex = 0;
   state.coveredLanes = new Set();
   state.handLanes = [];
   state.countdown = 0;
   state.countdownActive = false;
-  loadingBar.style.width = '0%';
-  stopAudio();
-  stopCamera();
   state.cameraMode = false;
   state.keysPressed = { '1': false, '2': false, '3': false, '4': false };
   hitEffects = [];
-  cameraPreview.style.display = 'none';
+  loadingBar.style.width = '0%';
   countdownOverlay.style.display = 'none';
+  stopAudio();
+  stopCamera();
+  cameraPreview.style.display = 'none';
 }
 
 musicFileInput.addEventListener('change', async (e) => {
