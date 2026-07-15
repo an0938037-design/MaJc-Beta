@@ -625,6 +625,8 @@ function getTime() {
 let hands = null;
 let camera = null;
 let cameraStream = null;
+let gestureHistory = {};
+let lastLaneState = {};
 
 function stopCamera() {
   if (camera) { try { camera.stop(); } catch (e) {} camera = null; }
@@ -651,16 +653,30 @@ async function initCamera(videoEl, callback) {
     h.setOptions({
       maxNumHands: 2,
       modelComplexity: 0,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.4,
+      minDetectionConfidence: 0.3,
+      minTrackingConfidence: 0.3,
     });
 
-    function isFist(lm) {
-      const indexCurled = lm[8].y >= lm[6].y;
-      const middleCurled = lm[12].y >= lm[10].y;
-      const ringCurled = lm[16].y >= lm[14].y;
-      const pinkyCurled = lm[20].y >= lm[18].y;
-      return indexCurled && middleCurled && ringCurled && pinkyCurled;
+    function getGesture(lm) {
+      const idxTipY = lm[8].y, idxPipY = lm[6].y;
+      const midTipY = lm[12].y, midPipY = lm[10].y;
+      const curled = (idxTipY >= idxPipY) && (midTipY >= midPipY);
+      return curled ? 'fist' : 'open';
+    }
+
+    function getSmoothLane(hIdx, zone, gesture) {
+      if (!gestureHistory[hIdx]) gestureHistory[hIdx] = [];
+      if (!lastLaneState[hIdx]) lastLaneState[hIdx] = zone === 'left' ? 0 : 2;
+
+      gestureHistory[hIdx].push(gesture);
+      if (gestureHistory[hIdx].length > 5) gestureHistory[hIdx].shift();
+
+      const fistCount = gestureHistory[hIdx].filter(g => g === 'fist').length;
+      const smoothGesture = fistCount >= 3 ? 'fist' : 'open';
+      const rawLane = zone === 'left' ? (smoothGesture === 'fist' ? 0 : 1) : (smoothGesture === 'fist' ? 2 : 3);
+
+      lastLaneState[hIdx] = rawLane;
+      return rawLane;
     }
 
     h.onResults(results => {
@@ -674,9 +690,14 @@ async function initCamera(videoEl, callback) {
           if (!wrist) continue;
 
           const mirroredX = 1 - wrist.x;
-          const zone = mirroredX < 0.5 ? 'left' : 'right';
-          const fist = isFist(lm);
-          const lane = zone === 'left' ? (fist ? 0 : 1) : (fist ? 2 : 3);
+          const zoneWidth = 0.1;
+          let zone;
+          if (mirroredX < 0.5 - zoneWidth / 2) zone = 'left';
+          else if (mirroredX > 0.5 + zoneWidth / 2) zone = 'right';
+          else zone = mirroredX <= 0.5 ? 'left' : 'right';
+
+          const gesture = getGesture(lm);
+          const lane = getSmoothLane(hIdx, zone, gesture);
 
           state.handLanes.push(lane);
           state.coveredLanes.add(lane);
@@ -707,10 +728,15 @@ async function initCamera(videoEl, callback) {
           for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
             const lm = results.multiHandLandmarks[hIdx];
             const color = hIdx === 0 ? '#ffd93d' : '#6bcb77';
-            const lane = state.handLanes[hIdx] !== undefined ? state.handLanes[hIdx] : -1;
             const mirroredX = 1 - lm[0].x;
-            const zone = mirroredX < 0.5 ? 'left' : 'right';
-            const fist = isFist(lm);
+            const zoneWidth = 0.1;
+            let zone;
+            if (mirroredX < 0.5 - zoneWidth / 2) zone = 'left';
+            else if (mirroredX > 0.5 + zoneWidth / 2) zone = 'right';
+            else zone = mirroredX <= 0.5 ? 'left' : 'right';
+
+            const gesture = getGesture(lm);
+            const lane = lastLaneState[hIdx] !== undefined ? lastLaneState[hIdx] : (zone === 'left' ? 0 : 2);
 
             drawConnectors(pctx, lm, HAND_CONNECTIONS, { color, lineWidth: 1.5 });
             for (const p of lm) {
@@ -720,13 +746,14 @@ async function initCamera(videoEl, callback) {
               pctx.fill();
             }
 
-            const zoneLabel = zone === 'left' ? (fist ? 'L1 NẮM' : 'L2 MỞ') : (fist ? 'L3 NẮM' : 'L4 MỞ');
+            const gestureLabel = gesture === 'fist' ? 'NẮM' : 'MỞ';
+            const laneNum = zone === 'left' ? (gesture === 'fist' ? 'L1' : 'L2') : (gesture === 'fist' ? 'L3' : 'L4');
             pctx.fillStyle = color;
-            pctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
+            pctx.font = 'bold 12px "Segoe UI", system-ui, sans-serif';
             pctx.textAlign = 'center';
             pctx.shadowColor = color;
-            pctx.shadowBlur = 8;
-            pctx.fillText(zoneLabel, (1 - lm[0].x) * cw, ch - 14);
+            pctx.shadowBlur = 10;
+            pctx.fillText(`${laneNum} ${gestureLabel}`, (1 - lm[0].x) * cw, ch - 14);
             pctx.shadowBlur = 0;
           }
         }
