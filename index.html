@@ -894,7 +894,9 @@ async function initCamera(videoEl, callback) {
           if (!lm[0]) continue;
           const palmX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
           const mirroredX = 1 - palmX;
-          const pct = Math.min(92, Math.max(8, mirroredX * 100));
+          const sensitivity = 1.35;
+          const sensitiveX = 0.5 + (mirroredX - 0.5) * sensitivity;
+          const pct = Math.min(98, Math.max(2, sensitiveX * 100));
           const dot = hIdx === 0 ? leftDot : rightDot;
           dot.style.display = 'block';
           dot.style.left = pct + '%';
