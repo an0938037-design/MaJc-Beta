@@ -245,6 +245,30 @@ h1 {
 }
 .game-over-stat strong { color: #fff; }
 
+.quit-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,71,87,0.25);
+  color: #ff4757;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+  display: none;
+  transition: all 0.3s;
+  line-height: 40px;
+  text-align: center;
+  padding: 0;
+}
+.quit-btn:hover {
+  background: rgba(255,71,87,0.5);
+  transform: scale(1.1);
+}
 #cameraPreview {
   position: fixed;
   bottom: 8px;
@@ -350,6 +374,8 @@ h1 {
 <div id="countdownOverlay">
   <div id="countdownText" class="countdown-number">3</div>
 </div>
+
+<button id="quitBtn" class="quit-btn" title="Về màn hình chính">✕</button>
 
 <div id="menuScreen" class="screen">
   <h1>MaJc Tiles</h1>
@@ -493,6 +519,7 @@ const finalAccuracy = document.getElementById('finalAccuracy');
 const finalStats = document.getElementById('finalStats');
 const replayBtn = document.getElementById('replayBtn');
 const menuBtn = document.getElementById('menuBtn');
+const quitBtn = document.getElementById('quitBtn');
 const previewVideo = document.getElementById('previewVideo');
 const calibrationVideo = document.getElementById('calibrationVideo');
 const cameraPreview = document.getElementById('cameraPreview');
@@ -1174,6 +1201,7 @@ function showCalibration() {
 function showGame() {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   state.gameStatus = 'playing';
+  quitBtn.style.display = 'block';
   if (state.cameraMode) {
     cameraPreview.style.display = 'block';
     buildCameraZones();
@@ -1183,6 +1211,7 @@ function showGame() {
 
 function showGameOver() {
   state.gameStatus = 'gameover';
+  quitBtn.style.display = 'none';
   finalScore.textContent = Math.floor(state.score).toLocaleString();
   finalCombo.textContent = state.maxCombo;
   const total = state.perfects + state.goods + state.misses;
@@ -1200,6 +1229,7 @@ function showGameOver() {
 function showMenu() {
   showScreen('menuScreen');
   state.gameStatus = 'idle';
+  quitBtn.style.display = 'none';
   state.notes = [];
   state.score = 0;
   state.combo = 0;
@@ -1328,10 +1358,21 @@ function startGame() {
   state.countdown = CONFIG.readyDelay;
   state.countdownActive = true;
   showGame();
+
+  // Restart camera if needed (e.g., on replay after game over)
+  if (state.cameraMode && !hands) {
+    initCamera(previewVideo, null);
+    cameraPreview.style.display = 'block';
+    buildCameraZones();
+  }
 }
 
 replayBtn.addEventListener('click', startGame);
 menuBtn.addEventListener('click', showMenu);
+quitBtn.addEventListener('click', () => {
+  stopAudio();
+  showMenu();
+});
 
 document.addEventListener('keydown', (e) => {
   if (['1', '2', '3', '4'].includes(e.key)) {
