@@ -312,8 +312,8 @@ h1 {
   </div>
   <button class="btn btn-primary" id="startBtn" disabled>Start Game</button>
   <div style="margin-top:12px;color:rgba(255,255,255,0.3);font-size:12px;text-align:center;max-width:360px;line-height:1.7;">
-    <strong style="color:rgba(255,255,255,0.6);">Camera:</strong> Đưa tay vào ô tương ứng với làn nốt nhạc. Track cả 2 tay!<br>
-    Tay ở ô nào &rarr; nhận ô đó. Ô không có nốt thì an toàn.<br>
+    <strong style="color:rgba(255,255,255,0.6);">Camera:</strong> Tay tr&aacute;i nắm=L1, mở=L2 | Tay phải nắm=L3, mở=L4<br>
+    Track cả 2 tay!<br>
     <span style="color:rgba(255,255,255,0.15);">Ph&iacute;m: 1 2 3 4 (giữ để cover l&agrave;n)</span>
   </div>
 </div>
@@ -330,7 +330,7 @@ h1 {
   <div class="calibration-box">
     <h2>Camera Calibration</h2>
     <p style="color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:8px;">
-      Đưa 2 tay vào khung hình để kiểm tra
+      Đưa 2 tay vào khung hình. Nắm = L1/L3, Mở = L2/L4
     </p>
     <div class="calibration-camera">
       <video id="calibrationVideo" autoplay playsinline></video>
@@ -451,18 +451,17 @@ resizeCanvas();
 function buildCameraZones() {
   const existing = cameraPreview.querySelectorAll('.camera-zone-line, .camera-zone-label');
   existing.forEach(el => el.remove());
-  for (let i = 1; i < CONFIG.lanes; i++) {
-    const line = document.createElement('div');
-    line.className = 'camera-zone-line';
-    line.style.left = (i / CONFIG.lanes * 100) + '%';
-    cameraPreview.appendChild(line);
-  }
-  for (let i = 0; i < CONFIG.lanes; i++) {
+  const line = document.createElement('div');
+  line.className = 'camera-zone-line';
+  line.style.left = '50%';
+  cameraPreview.appendChild(line);
+
+  for (const z of [{ side: 'left', label: 'L1 NẮM / L2 MỞ' }, { side: 'right', label: 'L3 NẮM / L4 MỞ' }]) {
     const label = document.createElement('div');
     label.className = 'camera-zone-label';
-    label.style.left = (i / CONFIG.lanes * 100) + '%';
-    label.style.width = (100 / CONFIG.lanes) + '%';
-    label.textContent = 'L' + (i + 1);
+    label.style.left = (z.side === 'left' ? '0%' : '50%');
+    label.style.width = '50%';
+    label.textContent = z.label;
     cameraPreview.appendChild(label);
   }
 }
@@ -656,6 +655,14 @@ async function initCamera(videoEl, callback) {
       minTrackingConfidence: 0.4,
     });
 
+    function isFist(lm) {
+      const indexCurled = lm[8].y >= lm[6].y;
+      const middleCurled = lm[12].y >= lm[10].y;
+      const ringCurled = lm[16].y >= lm[14].y;
+      const pinkyCurled = lm[20].y >= lm[18].y;
+      return indexCurled && middleCurled && ringCurled && pinkyCurled;
+    }
+
     h.onResults(results => {
       state.handLanes = [];
       state.coveredLanes = new Set();
@@ -663,12 +670,16 @@ async function initCamera(videoEl, callback) {
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
           const lm = results.multiHandLandmarks[hIdx];
-          const idxTip = lm[8];
-          if (idxTip) {
-            const lane = Math.min(CONFIG.lanes - 1, Math.floor((1 - idxTip.x) * CONFIG.lanes));
-            state.handLanes.push(lane);
-            state.coveredLanes.add(lane);
-          }
+          const wrist = lm[0];
+          if (!wrist) continue;
+
+          const mirroredX = 1 - wrist.x;
+          const zone = mirroredX < 0.5 ? 'left' : 'right';
+          const fist = isFist(lm);
+          const lane = zone === 'left' ? (fist ? 0 : 1) : (fist ? 2 : 3);
+
+          state.handLanes.push(lane);
+          state.coveredLanes.add(lane);
         }
       }
 
@@ -680,11 +691,26 @@ async function initCamera(videoEl, callback) {
         const pctx = previewCtx;
         pctx.clearRect(0, 0, cw, ch);
 
+        pctx.fillStyle = 'rgba(255,255,255,0.05)';
+        pctx.fillRect(0, 0, cw / 2, ch);
+        pctx.fillStyle = 'rgba(255,255,255,0.03)';
+        pctx.fillRect(cw / 2, 0, cw / 2, ch);
+
+        pctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        pctx.lineWidth = 1;
+        pctx.beginPath();
+        pctx.moveTo(cw / 2, 0);
+        pctx.lineTo(cw / 2, ch);
+        pctx.stroke();
+
         if (results.multiHandLandmarks) {
           for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
             const lm = results.multiHandLandmarks[hIdx];
             const color = hIdx === 0 ? '#ffd93d' : '#6bcb77';
             const lane = state.handLanes[hIdx] !== undefined ? state.handLanes[hIdx] : -1;
+            const mirroredX = 1 - lm[0].x;
+            const zone = mirroredX < 0.5 ? 'left' : 'right';
+            const fist = isFist(lm);
 
             drawConnectors(pctx, lm, HAND_CONNECTIONS, { color, lineWidth: 1.5 });
             for (const p of lm) {
@@ -694,14 +720,14 @@ async function initCamera(videoEl, callback) {
               pctx.fill();
             }
 
-            if (lane >= 0) {
-              const lx = (1 - (lane + 1) / CONFIG.lanes) * cw;
-              const lw = cw / CONFIG.lanes;
-              pctx.fillStyle = hIdx === 0 ? 'rgba(255,217,61,0.2)' : 'rgba(107,203,119,0.2)';
-              pctx.fillRect(lx, ch - 8, lw, 8);
-              pctx.fillStyle = color;
-              pctx.fillRect(lx, ch - 8, lw, 3);
-            }
+            const zoneLabel = zone === 'left' ? (fist ? 'L1 NẮM' : 'L2 MỞ') : (fist ? 'L3 NẮM' : 'L4 MỞ');
+            pctx.fillStyle = color;
+            pctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
+            pctx.textAlign = 'center';
+            pctx.shadowColor = color;
+            pctx.shadowBlur = 8;
+            pctx.fillText(zoneLabel, (1 - lm[0].x) * cw, ch - 14);
+            pctx.shadowBlur = 0;
           }
         }
       }
