@@ -185,16 +185,32 @@ h1 {
 }
 #simCanvas {
   position: fixed;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 80px;
-  height: 240px;
-  border-radius: 8px;
-  z-index: 20;
   display: none;
-  background: rgba(0,0,0,0.6);
-  border: 1px solid rgba(255,255,255,0.15);
+  z-index: 20;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+.demo-mode #simCanvas {
+  left: 16px;
+  top: 16px;
+  width: 200px;
+  height: calc(100vh - 16px - 8px - 32px - 8px - min(180px, 22vh) - 8px - 16px);
+}
+.demo-mode #cameraPreview {
+  left: 16px;
+  bottom: 56px;
+  transform: none;
+  width: 200px;
+  max-height: none;
+  aspect-ratio: 4 / 3;
+}
+.demo-mode #laneIndicator {
+  left: 16px;
+  bottom: 16px;
+  transform: none;
+  width: 200px;
+  height: 32px;
 }
 .btn-secondary {
   background: transparent;
@@ -634,6 +650,10 @@ function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   buildCameraZones();
+  if (demoActive) {
+    simCanvas.width = simCanvas.clientWidth || 200;
+    simCanvas.height = simCanvas.clientHeight || 400;
+  }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -1501,6 +1521,7 @@ let simTime = 0;
 
 function stopDemo() {
   demoActive = false;
+  document.body.classList.remove('demo-mode');
   if (simAnimId) { cancelAnimationFrame(simAnimId); simAnimId = null; }
   stopCamera();
   cameraPreview.style.display = 'none';
@@ -1512,13 +1533,14 @@ function stopDemo() {
 
 function startDemo() {
   demoActive = true;
+  document.body.classList.add('demo-mode');
   demoBtn.classList.add('active');
   demoBtn.textContent = 'Tắt';
   cameraPreview.style.display = 'block';
   document.getElementById('laneIndicator').style.display = 'block';
   simCanvas.style.display = 'block';
-  simCanvas.width = 80;
-  simCanvas.height = 240;
+  simCanvas.width = 200;
+  simCanvas.height = simCanvas.clientHeight || 400;
   buildCameraZones();
   simNotes = [];
   simTime = 0;
