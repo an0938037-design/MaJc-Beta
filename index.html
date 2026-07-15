@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -590,6 +590,30 @@ async function loadAndAnalyzeMusic(file) {
 
   const notes = generateNotes(beats);
   return { audioBuffer, beats, notes };
+}
+
+async function loadDefaultAudio() {
+  fileInputLabel.textContent = 'Đang tải nhạc mẫu...';
+  fileInputLabel.classList.add('has-file');
+  showLoading();
+  try {
+    const resp = await fetch('https://raw.githubusercontent.com/an0938037-design/MaJc-Beta/main/Come%20My%20Way.flac');
+    const blob = await resp.blob();
+    const file = new File([blob], 'Come My Way.flac', { type: 'audio/flac' });
+    const result = await loadAndAnalyzeMusic(file);
+    state.audioBuffer = result.audioBuffer;
+    state.beats = result.beats;
+    state.notes = result.notes;
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start Game';
+    fileInputLabel.textContent = 'Come My Way.flac (mặc định)';
+    showScreen('menuScreen');
+  } catch (err) {
+    console.error('Failed to load default audio:', err);
+    fileInputLabel.textContent = 'Chọn file nhạc (MP3 / WAV / FLAC)';
+    fileInputLabel.classList.remove('has-file');
+    showScreen('menuScreen');
+  }
 }
 
 function startAudio(buffer, offset) {
@@ -1262,8 +1286,11 @@ console.log('MaJc Tiles - 2-hand presence mode');
 console.log('Camera: put hands in lane zones. No tapping needed!');
 console.log('Keyboard: hold 1 2 3 4 to cover lanes');
 
+loadDefaultAudio();
+
 })();
 </script>
 </body>
 </html>
+
 
