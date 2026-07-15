@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -199,12 +199,12 @@ h1 {
 
 #cameraPreview {
   position: fixed;
-  top: 8px;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
   width: min(400px, 75vw);
   aspect-ratio: 4 / 3;
-  max-height: 35vh;
+  max-height: 20vh;
   border-radius: 8px;
   overflow: hidden;
   border: 2px solid rgba(255,255,255,0.1);
@@ -368,7 +368,7 @@ h1 {
 const CONFIG = {
   lanes: 4,
   scrollSpeed: 320,
-  hitZoneY: 0.55,
+  hitZoneY: 0.78,
   perfectWindow: 0.08,
   goodWindow: 0.16,
   missWindow: 0.22,
@@ -848,12 +848,12 @@ function render() {
   ctx.lineTo(W, hitY);
   ctx.stroke();
 
-  const hzGrad = ctx.createLinearGradient(0, hitY - 30, 0, hitY + 10);
+  const hzGrad = ctx.createLinearGradient(0, hitY - 40, 0, hitY + 5);
   hzGrad.addColorStop(0, 'rgba(255,217,61,0)');
   hzGrad.addColorStop(0.5, 'rgba(255,217,61,0.06)');
   hzGrad.addColorStop(1, 'rgba(255,217,61,0)');
   ctx.fillStyle = hzGrad;
-  ctx.fillRect(0, hitY - 30, W, 40);
+  ctx.fillRect(0, hitY - 40, W, 45);
   ctx.restore();
 
   for (const note of state.notes) {
@@ -862,7 +862,7 @@ function render() {
     if (diff < -CONFIG.missWindow) continue;
     if (diff > 2) continue;
 
-    const y = hitY + diff * CONFIG.scrollSpeed;
+    const y = hitY - diff * CONFIG.scrollSpeed;
     if (y < -CONFIG.noteHeight || y > H + CONFIG.noteHeight) continue;
 
     const x = note.lane * laneW + laneW / 2;
@@ -919,7 +919,7 @@ function render() {
 
   ctx.save();
 
-  const scoreY = state.cameraMode ? 220 : 60;
+  const scoreY = 60;
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 32px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'left';
@@ -947,19 +947,19 @@ function render() {
   }
 
   for (let i = 0; i < CONFIG.maxLives; i++) {
-    const lx = W - 24 - i * 28;
+    const lx = 24 + i * 34;
     ctx.shadowBlur = i < state.lives ? 12 : 0;
     ctx.shadowColor = '#ff6b6b';
     ctx.fillStyle = i < state.lives ? '#ff6b6b' : 'rgba(255,107,107,0.12)';
     ctx.beginPath();
-    ctx.arc(lx, scoreY - 14, 8, 0, Math.PI * 2);
+    ctx.arc(lx, scoreY + 22, 8, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.shadowBlur = 0;
 
   if (state.notes.length > 0) {
     const p = Math.min(1, state.hitNotes / state.notes.length);
-    const bx = 24, by = H - 24, bw = W - 48, bh = 3;
+    const bx = 24, by = 100, bw = W - 48, bh = 3;
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = 'rgba(255,217,61,0.25)';
@@ -968,14 +968,14 @@ function render() {
 
   if (state.cameraMode) {
     ctx.fillStyle = state.coveredLanes.size > 0 ? 'rgba(107,203,119,0.3)' : 'rgba(255,107,107,0.3)';
-    ctx.font = '9px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(state.coveredLanes.size > 0 ? 'CAM \u25C9' : 'CAM \u25CF', 24, H - 40);
+    ctx.font = '16px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(state.coveredLanes.size > 0 ? 'CAM \u25C9' : 'CAM \u25CF', W - 24, 55);
   } else {
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '9px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('KEYS: 1 2 3 4', 24, H - 40);
+    ctx.font = '16px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('KEYS: 1 2 3 4', W - 24, 55);
   }
 
   ctx.restore();
@@ -1232,3 +1232,4 @@ console.log('Keyboard: hold 1 2 3 4 to cover lanes');
 </script>
 </body>
 </html>
+
