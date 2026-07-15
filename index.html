@@ -641,7 +641,7 @@ function stopCamera() {
 async function initCamera(videoEl, callback) {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 320, height: 240, facingMode: 'user', frameRate: 30 }
+      video: { width: 160, height: 120, facingMode: 'user', frameRate: 20 }
     });
     videoEl.srcObject = stream;
     cameraStream = stream;
@@ -653,30 +653,12 @@ async function initCamera(videoEl, callback) {
     h.setOptions({
       maxNumHands: 2,
       modelComplexity: 0,
-      minDetectionConfidence: 0.3,
-      minTrackingConfidence: 0.3,
+      minDetectionConfidence: 0.15,
+      minTrackingConfidence: 0.15,
     });
 
     function getGesture(lm) {
-      const idxTipY = lm[8].y, idxPipY = lm[6].y;
-      const midTipY = lm[12].y, midPipY = lm[10].y;
-      const curled = (idxTipY >= idxPipY) && (midTipY >= midPipY);
-      return curled ? 'fist' : 'open';
-    }
-
-    function getSmoothLane(hIdx, zone, gesture) {
-      if (!gestureHistory[hIdx]) gestureHistory[hIdx] = [];
-      if (!lastLaneState[hIdx]) lastLaneState[hIdx] = zone === 'left' ? 0 : 2;
-
-      gestureHistory[hIdx].push(gesture);
-      if (gestureHistory[hIdx].length > 5) gestureHistory[hIdx].shift();
-
-      const fistCount = gestureHistory[hIdx].filter(g => g === 'fist').length;
-      const smoothGesture = fistCount >= 3 ? 'fist' : 'open';
-      const rawLane = zone === 'left' ? (smoothGesture === 'fist' ? 0 : 1) : (smoothGesture === 'fist' ? 2 : 3);
-
-      lastLaneState[hIdx] = rawLane;
-      return rawLane;
+      return (lm[8].y >= lm[6].y) && (lm[12].y >= lm[10].y) ? 'fist' : 'open';
     }
 
     h.onResults(results => {
@@ -690,14 +672,9 @@ async function initCamera(videoEl, callback) {
           if (!wrist) continue;
 
           const mirroredX = 1 - wrist.x;
-          const zoneWidth = 0.1;
-          let zone;
-          if (mirroredX < 0.5 - zoneWidth / 2) zone = 'left';
-          else if (mirroredX > 0.5 + zoneWidth / 2) zone = 'right';
-          else zone = mirroredX <= 0.5 ? 'left' : 'right';
-
+          const zone = mirroredX < 0.5 ? 'left' : 'right';
           const gesture = getGesture(lm);
-          const lane = getSmoothLane(hIdx, zone, gesture);
+          const lane = zone === 'left' ? (gesture === 'fist' ? 0 : 1) : (gesture === 'fist' ? 2 : 3);
 
           state.handLanes.push(lane);
           state.coveredLanes.add(lane);
@@ -729,14 +706,8 @@ async function initCamera(videoEl, callback) {
             const lm = results.multiHandLandmarks[hIdx];
             const color = hIdx === 0 ? '#ffd93d' : '#6bcb77';
             const mirroredX = 1 - lm[0].x;
-            const zoneWidth = 0.1;
-            let zone;
-            if (mirroredX < 0.5 - zoneWidth / 2) zone = 'left';
-            else if (mirroredX > 0.5 + zoneWidth / 2) zone = 'right';
-            else zone = mirroredX <= 0.5 ? 'left' : 'right';
-
+            const zone = mirroredX < 0.5 ? 'left' : 'right';
             const gesture = getGesture(lm);
-            const lane = lastLaneState[hIdx] !== undefined ? lastLaneState[hIdx] : (zone === 'left' ? 0 : 2);
 
             drawConnectors(pctx, lm, HAND_CONNECTIONS, { color, lineWidth: 1.5 });
             for (const p of lm) {
@@ -766,8 +737,8 @@ async function initCamera(videoEl, callback) {
       onFrame: async () => {
         try { await h.send({ image: videoEl }); } catch (e) {}
       },
-      width: 320,
-      height: 240,
+      width: 160,
+      height: 120,
     });
     cam.start().catch(() => {});
 
