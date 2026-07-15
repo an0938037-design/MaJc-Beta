@@ -757,19 +757,25 @@ async function initCamera(videoEl, callback) {
       minTrackingConfidence: 0.15,
     });
 
+    const curlSmooth = {};
     function getStableGesture(lm, hIdx) {
       if (!handState[hIdx]) handState[hIdx] = { gesture: 'open', zone: 'left' };
+      if (!curlSmooth[hIdx]) curlSmooth[hIdx] = 0;
       const s = handState[hIdx];
 
       const indexCurl = lm[8].y - lm[6].y;
       const middleCurl = lm[12].y - lm[10].y;
-      const avgCurl = (indexCurl + middleCurl) / 2;
+      const ringCurl = lm[16].y - lm[14].y;
+      const rawCurl = (indexCurl + middleCurl + ringCurl) / 3;
+      curlSmooth[hIdx] = curlSmooth[hIdx] * 0.6 + rawCurl * 0.4;
+      const avgCurl = curlSmooth[hIdx];
 
       const curlThreshold = 0.04;
       if (s.gesture === 'open' && avgCurl > curlThreshold) s.gesture = 'fist';
       else if (s.gesture === 'fist' && avgCurl < -curlThreshold) s.gesture = 'open';
 
-      const mirroredX = 1 - lm[0].x;
+      const palmX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
+      const mirroredX = 1 - palmX;
       const zoneMargin = 0.08;
       if (s.zone === 'left' && mirroredX > 0.5 + zoneMargin) s.zone = 'right';
       else if (s.zone === 'right' && mirroredX < 0.5 - zoneMargin) s.zone = 'left';
@@ -835,7 +841,8 @@ async function initCamera(videoEl, callback) {
             pctx.textAlign = 'center';
             pctx.shadowColor = color;
             pctx.shadowBlur = 10;
-            pctx.fillText(`${laneNum} ${gestureLabel}`, (1 - lm[0].x) * cw, ch - 14);
+            const labelX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
+            pctx.fillText(`${laneNum} ${gestureLabel}`, (1 - labelX) * cw, ch - 14);
             pctx.shadowBlur = 0;
           }
         }
