@@ -53,6 +53,54 @@ h1 {
   letter-spacing: 4px;
   text-transform: uppercase;
 }
+.demo-songs {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.demo-song {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: rgba(255,255,255,0.03);
+}
+.demo-song:hover {
+  border-color: #ffd93d;
+  background: rgba(255,217,61,0.08);
+}
+.demo-song.selected {
+  border-color: #6bcb77;
+  background: rgba(107,203,119,0.1);
+}
+.song-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+}
+.difficulty-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+}
+.difficulty-badge.hard {
+  background: rgba(255,71,87,0.2);
+  color: #ff4757;
+  border: 1px solid rgba(255,71,87,0.4);
+}
+.difficulty-badge.easy {
+  background: rgba(107,203,119,0.2);
+  color: #6bcb77;
+  border: 1px solid rgba(107,203,119,0.4);
+}
 .file-input-wrapper {
   position: relative;
   margin: 16px 0;
@@ -306,6 +354,17 @@ h1 {
 <div id="menuScreen" class="screen">
   <h1>MaJc Tiles</h1>
   <div class="subtitle">Magic Tiles 3 Clone</div>
+  <div class="demo-songs">
+    <div class="demo-song selected" data-song="come-my-way">
+      <span class="song-name">Come My Way</span>
+      <span class="difficulty-badge hard">HARD</span>
+    </div>
+    <div class="demo-song" data-song="nau-an-cho-em">
+      <span class="song-name">Nấu ăn cho em</span>
+      <span class="difficulty-badge easy">EASY</span>
+    </div>
+  </div>
+  <div style="margin:10px 0;color:rgba(255,255,255,0.25);font-size:13px;">&mdash; hoặc tải file nhạc của bạn &mdash;</div>
   <div class="file-input-wrapper">
     <input type="file" id="musicFileInput" accept="audio/*">
     <label class="file-input-label" id="fileInputLabel">Chọn file nhạc (MP3 / WAV / FLAC)</label>
@@ -592,21 +651,39 @@ async function loadAndAnalyzeMusic(file) {
   return { audioBuffer, beats, notes };
 }
 
-async function loadDefaultAudio() {
-  fileInputLabel.textContent = 'Đang tải nhạc mẫu...';
+const DEMO_SONGS = {
+  'come-my-way': {
+    url: 'https://github.com/an0938037-design/MaJc-Beta/releases/download/demo-songs/come-my-way.flac',
+    name: 'Come My Way.flac',
+    display: 'Come My Way',
+    difficulty: 'hard',
+  },
+  'nau-an-cho-em': {
+    url: 'https://github.com/an0938037-design/MaJc-Beta/releases/download/demo-songs/nau-an-cho-em.flac',
+    name: 'Nấu ăn cho em.flac',
+    display: 'Nấu ăn cho em',
+    difficulty: 'easy',
+  },
+};
+
+async function loadDefaultAudio(songId) {
+  const song = DEMO_SONGS[songId];
+  if (!song) return;
+  fileInputLabel.textContent = 'Đang tải ' + song.display + '...';
   fileInputLabel.classList.add('has-file');
   showLoading();
   try {
-    const resp = await fetch('https://raw.githubusercontent.com/an0938037-design/MaJc-Beta/main/Come%20My%20Way.flac');
+    const resp = await fetch(song.url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
-    const file = new File([blob], 'Come My Way.flac', { type: 'audio/flac' });
+    const file = new File([blob], song.name, { type: 'audio/flac' });
     const result = await loadAndAnalyzeMusic(file);
     state.audioBuffer = result.audioBuffer;
     state.beats = result.beats;
     state.notes = result.notes;
     startBtn.disabled = false;
     startBtn.textContent = 'Start Game';
-    fileInputLabel.textContent = 'Come My Way.flac (mặc định)';
+    fileInputLabel.textContent = song.display + ' (' + song.difficulty + ')';
     showScreen('menuScreen');
   } catch (err) {
     console.error('Failed to load default audio:', err);
@@ -1145,6 +1222,7 @@ function showMenu() {
 musicFileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  document.querySelectorAll('.demo-song').forEach(s => s.classList.remove('selected'));
   fileInputLabel.textContent = file.name;
   fileInputLabel.classList.add('has-file');
   startBtn.disabled = true;
@@ -1286,7 +1364,20 @@ console.log('MaJc Tiles - 2-hand presence mode');
 console.log('Camera: put hands in lane zones. No tapping needed!');
 console.log('Keyboard: hold 1 2 3 4 to cover lanes');
 
-loadDefaultAudio();
+// Demo song selection
+let selectedSongId = 'come-my-way';
+document.querySelectorAll('.demo-song').forEach(el => {
+  el.addEventListener('click', () => {
+    if (state.isPlaying) return;
+    document.querySelectorAll('.demo-song').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSongId = el.dataset.song;
+    loadDefaultAudio(selectedSongId);
+  });
+});
+
+// Auto-load the first demo song
+loadDefaultAudio('come-my-way');
 
 })();
 </script>
