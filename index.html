@@ -1550,19 +1550,6 @@ function showRating(text, color) {
 }
 
 function playTapSound(lane) {
-  const ctx = getAudioContext();
-  if (ctx.state === 'suspended') return;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  const freqs = [523.25, 659.25, 783.99, 1046.5];
-  osc.frequency.setValueAtTime(freqs[lane] || 523.25, ctx.currentTime);
-  osc.type = 'triangle';
-  gain.gain.setValueAtTime(0.08, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.12);
 }
 
 function togglePause() {
