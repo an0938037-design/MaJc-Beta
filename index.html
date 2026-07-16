@@ -1389,7 +1389,7 @@ async function initCamera(videoEl, callback) {
         for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
           const lm = results.multiHandLandmarks[hIdx];
           const label = results.multiHandedness[hIdx].label;
-          const side = label === 'Left' ? 'left' : 'right';
+          const side = label === 'Left' ? 'right' : 'left';
           const fist = isFist(lm);
           gestures[side] = fist ? 'fist' : 'open';
           if (side === 'left') {
@@ -1409,7 +1409,7 @@ async function initCamera(videoEl, callback) {
         for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
           const lm = results.multiHandLandmarks[hIdx];
           const label = results.multiHandedness[hIdx].label;
-          const side = label === 'Left' ? 'left' : 'right';
+          const side = label === 'Left' ? 'right' : 'left';
           const dot = side === 'left' ? leftDot : rightDot;
           dot.style.display = 'block';
           dot.style.left = side === 'left' ? '25%' : '75%';
@@ -1453,7 +1453,7 @@ async function initCamera(videoEl, callback) {
           for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
             const lm = results.multiHandLandmarks[hIdx];
             const label = results.multiHandedness[hIdx].label;
-            const side = label === 'Left' ? 'left' : 'right';
+            const side = label === 'Left' ? 'right' : 'left';
             const color = side === 'left' ? '#ffd93d' : '#4d96ff';
 
             const mirroredLm = lm.map(p => ({ x: 1 - p.x, y: p.y, z: p.z }));
