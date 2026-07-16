@@ -669,60 +669,136 @@ function buildCameraZones() {
   }
 }
 
+function fft(re, im) {
+  const n = re.length;
+  const bits = Math.round(Math.log2(n));
+  for (let i = 0; i < n; i++) {
+    let j = 0;
+    for (let bit = 0; bit < bits; bit++) {
+      j = (j << 1) | ((i >> bit) & 1);
+    }
+    if (j > i) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const half = len >> 1;
+    const angle = -2 * Math.PI / len;
+    const wReA = Math.cos(angle);
+    const wImA = Math.sin(angle);
+    for (let i = 0; i < n; i += len) {
+      let wRe = 1, wIm = 0;
+      for (let j = 0; j < half; j++) {
+        const tRe = wRe * re[i + j + half] - wIm * im[i + j + half];
+        const tIm = wRe * im[i + j + half] + wIm * re[i + j + half];
+        re[i + j + half] = re[i + j] - tRe;
+        im[i + j + half] = im[i + j] - tIm;
+        re[i + j] += tRe;
+        im[i + j] += tIm;
+        const nwRe = wRe * wReA - wIm * wImA;
+        wIm = wRe * wImA + wIm * wReA;
+        wRe = nwRe;
+      }
+    }
+  }
+}
+
 function detectBeats(audioBuffer) {
   const channelData = audioBuffer.getChannelData(0);
   const sampleRate = audioBuffer.sampleRate;
-  const fs = CONFIG.frameSize;
-  const hs = CONFIG.hopSize;
-  const numFrames = Math.max(1, Math.floor((channelData.length - fs) / hs));
+  const N = CONFIG.frameSize;
+  const H = CONFIG.hopSize;
+  const numFrames = Math.max(1, Math.floor((channelData.length - N) / H));
+  const halfN = N >> 1;
 
-  const energies = new Float32Array(numFrames);
+  const hann = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+  }
+
+  const nyquist = sampleRate / 2;
+  const binHz = nyquist / halfN;
+  const lowEnd = Math.min(halfN, Math.floor(200 / binHz));
+  const midEnd = Math.min(halfN, Math.floor(2000 / binHz));
+  const bandSizes = [lowEnd, midEnd - lowEnd, halfN - midEnd];
+
+  const re = new Float64Array(N);
+  const im = new Float64Array(N);
+  const prevMag = new Float64Array(halfN);
+  const bandFlux = [new Float32Array(numFrames), new Float32Array(numFrames), new Float32Array(numFrames)];
+  const bandWeights = [1.2, 0.4, 0.8];
+
   for (let i = 0; i < numFrames; i++) {
-    const off = i * hs;
-    let sum = 0;
-    for (let j = 0; j < fs; j++) {
-      const s = channelData[off + j];
-      sum += s * s;
+    const off = i * H;
+    for (let j = 0; j < N; j++) {
+      re[j] = channelData[off + j] * hann[j];
+      im[j] = 0;
     }
-    energies[i] = Math.sqrt(sum / fs);
+    fft(re, im);
+
+    if (i === 0) {
+      for (let j = 0; j < halfN; j++) {
+        prevMag[j] = Math.sqrt(re[j] * re[j] + im[j] * im[j]);
+      }
+      continue;
+    }
+
+    for (let j = 0; j < halfN; j++) {
+      const mag = Math.sqrt(re[j] * re[j] + im[j] * im[j]);
+      const d = Math.max(0, mag - prevMag[j]);
+      prevMag[j] = mag;
+      if (j < lowEnd) {
+        bandFlux[0][i] += d;
+      } else if (j < midEnd) {
+        bandFlux[1][i] += d;
+      } else {
+        bandFlux[2][i] += d;
+      }
+    }
+
+    bandFlux[0][i] = (bandFlux[0][i] / (bandSizes[0] || 1)) * bandWeights[0];
+    bandFlux[1][i] = (bandFlux[1][i] / (bandSizes[1] || 1)) * bandWeights[1];
+    bandFlux[2][i] = (bandFlux[2][i] / (bandSizes[2] || 1)) * bandWeights[2];
   }
 
-  const onset = new Float32Array(numFrames);
+  const combined = new Float32Array(numFrames);
   for (let i = 1; i < numFrames; i++) {
-    onset[i] = Math.max(0, energies[i] - energies[i - 1]);
+    combined[i] = bandFlux[0][i] + bandFlux[1][i] + bandFlux[2][i];
   }
 
-  let sum = 0, cnt = 0;
+  const wSize = Math.max(1, Math.floor(0.15 * sampleRate / H));
+  const threshold = new Float32Array(numFrames);
   for (let i = 0; i < numFrames; i++) {
-    if (onset[i] > 0) { sum += onset[i]; cnt++; }
+    let s = 0, c = 0;
+    const start = Math.max(0, i - wSize);
+    const end = Math.min(numFrames, i + wSize + 1);
+    for (let j = start; j < end; j++) {
+      s += combined[j]; c++;
+    }
+    threshold[i] = (s / c) * CONFIG.beatThresholdMultiplier;
   }
-  const mean = cnt > 0 ? sum / cnt : 0;
-  let varSum = 0;
-  for (let i = 0; i < numFrames; i++) {
-    const d = onset[i] - mean;
-    varSum += d * d;
-  }
-  const std = Math.sqrt(varSum / numFrames);
-  const threshold = mean + CONFIG.beatThresholdMultiplier * Math.max(std, 0.001);
 
   const beats = [];
-  const minFrames = Math.floor(CONFIG.minBeatInterval * sampleRate / hs);
-  let lastBeat = -minFrames;
+  const minSep = Math.floor(CONFIG.minBeatInterval * sampleRate / H);
+  let lastBeat = -minSep;
 
-  for (let i = 1; i < numFrames - 1; i++) {
-    if (onset[i] > threshold &&
-        onset[i] >= onset[i - 1] &&
-        onset[i] > onset[i + 1] &&
-        (i - lastBeat) >= minFrames) {
-      beats.push((i * hs) / sampleRate);
+  for (let i = 2; i < numFrames - 2; i++) {
+    if (combined[i] > threshold[i] &&
+        combined[i] >= combined[i - 1] &&
+        combined[i] >= combined[i - 2] &&
+        combined[i] >= combined[i + 1] &&
+        combined[i] >= combined[i + 2] &&
+        (i - lastBeat) >= minSep) {
+      beats.push((i * H) / sampleRate);
       lastBeat = i;
     }
   }
 
   if (beats.length < 5) {
-    const fallback = [];
     const dur = audioBuffer.duration;
     const interval = 60 / 130;
+    const fallback = [];
     for (let t = interval; t < dur - 0.5; t += interval) {
       fallback.push(t);
     }
@@ -1064,17 +1140,17 @@ async function initCamera(videoEl, callback) {
         pctx.textAlign = 'center';
         if (gestures.left) {
           pctx.fillStyle = gestures.left === 'fist' ? '#ffd93d' : '#6bcb77';
-          pctx.fillText('TAY TRÁI: ' + (gestures.left === 'fist' ? 'NẮM → L1' : 'MỞ → L2'), cw * 0.25, 16);
+          pctx.fillText('TAY TRÁI: ' + (gestures.left === 'fist' ? 'NẮM → L1' : 'MỞ → L2'), cw * 0.75, 16);
         } else {
           pctx.fillStyle = 'rgba(255,255,255,0.2)';
-          pctx.fillText('TAY TRÁI: ---', cw * 0.25, 16);
+          pctx.fillText('TAY TRÁI: ---', cw * 0.75, 16);
         }
         if (gestures.right) {
           pctx.fillStyle = gestures.right === 'fist' ? '#4d96ff' : '#6bcb77';
-          pctx.fillText('TAY PHẢI: ' + (gestures.right === 'fist' ? 'NẮM → L3' : 'MỞ → L4'), cw * 0.75, 16);
+          pctx.fillText('TAY PHẢI: ' + (gestures.right === 'fist' ? 'NẮM → L3' : 'MỞ → L4'), cw * 0.25, 16);
         } else {
           pctx.fillStyle = 'rgba(255,255,255,0.2)';
-          pctx.fillText('TAY PHẢI: ---', cw * 0.75, 16);
+          pctx.fillText('TAY PHẢI: ---', cw * 0.25, 16);
         }
 
         if (results.multiHandLandmarks && results.multiHandedness) {
