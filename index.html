@@ -268,7 +268,6 @@ h1 {
 .calibration-camera video {
   width: 100%; height: 100%;
   object-fit: cover;
-  transform: scaleX(-1);
 }
 .calibration-status {
   font-size: 13px;
@@ -341,13 +340,11 @@ h1 {
 #cameraPreview video {
   width: 100%; height: 100%;
   object-fit: cover;
-  transform: scaleX(-1);
 }
 #cameraPreview canvas {
   position: absolute;
   inset: 0;
   width: 100%; height: 100%;
-  transform: scaleX(-1);
 }
 .camera-zone-line {
   position: absolute;
@@ -656,8 +653,8 @@ function buildCameraZones() {
     cameraPreview.appendChild(line);
   }
   const zones = [
-    { label: 'L1 (nắm) / L2 (mở)', left: 0, w: 50 },
-    { label: 'L3 (nắm) / L4 (mở)', left: 50, w: 50 },
+    { label: 'L3 (nắm) / L4 (mở)', left: 0, w: 50 },
+    { label: 'L1 (nắm) / L2 (mở)', left: 50, w: 50 },
   ];
   for (const z of zones) {
     const label = document.createElement('div');
@@ -1138,11 +1135,8 @@ async function initCamera(videoEl, callback) {
           const label = results.multiHandedness[hIdx].label;
           const side = label === 'Left' ? 'left' : 'right';
           const dot = side === 'left' ? leftDot : rightDot;
-          const palmX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
-          const mirroredX = 1 - palmX;
-          const pct = Math.min(95, Math.max(5, mirroredX * 100));
           dot.style.display = 'block';
-          dot.style.left = pct + '%';
+          dot.style.left = side === 'left' ? '25%' : '75%';
         }
       }
 
