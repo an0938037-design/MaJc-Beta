@@ -1772,6 +1772,7 @@ function render() {
   ctx.fillRect(0, hitY - 40, W, 45);
   ctx.restore();
 
+  if (!state.countdownActive) {
   for (const note of state.notes) {
     if (note.hit) continue;
     const diff = note.time - now;
@@ -1807,6 +1808,7 @@ function render() {
     ctx.roundRect(x - nw / 2, y - nh / 2, nw, nh, 6);
     ctx.fill();
     ctx.restore();
+  }
   }
 
   for (let i = 0; i < CONFIG.lanes; i++) {
