@@ -855,8 +855,23 @@ function generateNotes(beats) {
       result: null,
     });
   }
-  state.totalNotes = notes.length;
-  return notes;
+
+  const filtered = [];
+  for (const note of notes) {
+    const visibleWindow = 2.5;
+    const start = note.time - visibleWindow;
+    const end = note.time + visibleWindow;
+    let count = 0;
+    for (const existing of filtered) {
+      if (existing.time >= start && existing.time <= end) count++;
+    }
+    if (count < 2) {
+      filtered.push(note);
+    }
+  }
+
+  state.totalNotes = filtered.length;
+  return filtered;
 }
 
 let audioContext = null;
