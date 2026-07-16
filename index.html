@@ -268,6 +268,8 @@ h1 {
 .calibration-camera video {
   width: 100%; height: 100%;
   object-fit: cover;
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
 }
 .calibration-status {
   font-size: 13px;
@@ -340,11 +342,15 @@ h1 {
 #cameraPreview video {
   width: 100%; height: 100%;
   object-fit: cover;
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
 }
 #cameraPreview canvas {
   position: absolute;
   inset: 0;
   width: 100%; height: 100%;
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
 }
 .camera-zone-line {
   position: absolute;
@@ -653,8 +659,8 @@ function buildCameraZones() {
     cameraPreview.appendChild(line);
   }
   const zones = [
-    { label: 'L3 (nắm) / L4 (mở)', left: 0, w: 50 },
-    { label: 'L1 (nắm) / L2 (mở)', left: 50, w: 50 },
+    { label: 'L1 (nắm) / L2 (mở)', left: 0, w: 50 },
+    { label: 'L3 (nắm) / L4 (mở)', left: 50, w: 50 },
   ];
   for (const z of zones) {
     const label = document.createElement('div');
