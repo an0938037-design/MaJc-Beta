@@ -197,6 +197,210 @@ h1 {
   width: 200px;
   height: calc(100vh - 16px - 8px - 32px - 8px - min(180px, 22vh) - 8px - 16px);
 }
+.settings-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  width: 100%;
+  max-width: 360px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0;
+  gap: 10px;
+}
+.settings-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.settings-toggle {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 3px;
+}
+.diff-btn {
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.diff-btn.active {
+  background: #ffd93d;
+  color: #1a1a2e;
+}
+.diff-btn[data-diff="easy"].active { background: #6bcb77; color: #fff; }
+.diff-btn[data-diff="hard"].active { background: #ff6b6b; color: #fff; }
+.settings-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-slider {
+  width: 100px;
+  accent-color: #ffd93d;
+  cursor: pointer;
+}
+.settings-speed-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd93d;
+  min-width: 32px;
+  text-align: center;
+}
+.hit-rating {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 15;
+  text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+  opacity: 0;
+  transition: opacity 0.1s, transform 0.1s;
+}
+.hit-rating.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.3);
+}
+.game-hud {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 6;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  display: none;
+}
+.hud-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color 0.2s;
+  line-height: 1;
+}
+.hud-btn:hover { color: #ffd93d; }
+.hud-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hud-progress-bg {
+  width: 120px;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.hud-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffd93d, #6bcb77);
+  border-radius: 2px;
+  transition: width 0.1s;
+}
+.hud-time {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  font-variant-numeric: tabular-nums;
+  min-width: 35px;
+}
+.toast-container {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.toast-msg {
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  animation: toastIn 0.3s ease-out;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.results-icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+}
+.results-title {
+  font-size: 36px;
+  font-weight: 900;
+  margin-bottom: 2px;
+}
+.results-subtitle {
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 20px;
+}
+.results-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 16px 24px;
+  width: 100%;
+  max-width: 320px;
+}
+.results-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
+.results-row + .results-row {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.results-val {
+  font-weight: 700;
+  color: #fff;
+}
+.results-row-rank { margin-top: 4px; padding-top: 10px; }
+.results-rank {
+  font-size: 28px;
+  font-weight: 900;
+}
 .demo-mode #cameraPreview {
   left: 16px;
   bottom: 56px;
@@ -488,6 +692,20 @@ h1 {
   <div id="countdownText" class="countdown-number">3</div>
 </div>
 
+<div id="hitRating" class="hit-rating"></div>
+
+<div id="gameHUD" class="game-hud">
+  <button id="pauseBtn" class="hud-btn" title="Tạm dừng">⏸</button>
+  <div class="hud-progress-wrap">
+    <div class="hud-progress-bg">
+      <div id="songProgress" class="hud-progress-fill"></div>
+    </div>
+    <span id="songTime" class="hud-time">0:00</span>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
 <button id="quitBtn" class="quit-btn" title="Về màn hình chính">✕</button>
 
 <div id="menuScreen" class="screen">
@@ -501,6 +719,23 @@ h1 {
     <div class="demo-song" data-song="nau-an-cho-em">
       <span class="song-name">Nấu ăn cho em</span>
       <span class="difficulty-badge easy">EASY</span>
+    </div>
+  </div>
+  <div class="settings-box">
+    <div class="settings-row">
+      <span class="settings-label">Độ khó</span>
+      <div class="settings-toggle">
+        <button class="diff-btn" data-diff="easy">DỄ</button>
+        <button class="diff-btn active" data-diff="medium">VỪA</button>
+        <button class="diff-btn" data-diff="hard">KHÓ</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">Tốc độ</span>
+      <div class="settings-slider-row">
+        <input type="range" id="speedSlider" min="0.6" max="1.8" step="0.2" value="1" class="settings-slider">
+        <span id="speedValue" class="settings-speed-val">1.0x</span>
+      </div>
     </div>
   </div>
   <div style="margin:10px 0;color:rgba(255,255,255,0.25);font-size:13px;">&mdash; hoặc tải file nhạc của bạn &mdash;</div>
@@ -543,12 +778,17 @@ h1 {
   </div>
 </div>
 
-<div id="gameOverScreen" class="screen hidden">
-  <div class="game-over-title">GAME OVER</div>
-  <div class="game-over-score" id="finalScore">0</div>
-  <div class="game-over-stat">Combo cao nhất: <strong id="finalCombo">0</strong>x</div>
-  <div class="game-over-stat">Độ chính xác: <strong id="finalAccuracy">0%</strong></div>
-  <div class="game-over-stat">Perfect / Good / Miss: <strong id="finalStats">0 / 0 / 0</strong></div>
+<div id="resultsScreen" class="screen hidden">
+  <div id="resultsIcon" class="results-icon">🏆</div>
+  <div id="resultsTitle" class="results-title">XUẤT SẮC!</div>
+  <div id="resultsSubtitle" class="results-subtitle">Bạn đã hoàn thành bài nhạc</div>
+  <div class="results-box">
+    <div class="results-row"><span>Điểm số</span><span id="resultsScore" class="results-val">0</span></div>
+    <div class="results-row"><span>Combo tối đa</span><span id="resultsMaxCombo" class="results-val">0x</span></div>
+    <div class="results-row"><span>Perfect / Good / Miss</span><span id="resultsStats" class="results-val">0 / 0 / 0</span></div>
+    <div class="results-row"><span>Độ chính xác</span><span id="resultsAccuracy" class="results-val">0%</span></div>
+    <div class="results-row results-row-rank"><span>Xếp hạng</span><span id="resultsRank" class="results-rank">S+</span></div>
+  </div>
   <div style="margin-top:16px;">
     <button class="btn btn-primary" id="replayBtn">Chơi lại</button>
     <button class="btn btn-secondary" id="menuBtn">Chọn nhạc khác</button>
@@ -567,9 +807,9 @@ const CONFIG = {
   lanes: 4,
   scrollSpeed: 320,
   hitZoneY: 0.78,
-  perfectWindow: 0.08,
-  goodWindow: 0.16,
-  missWindow: 0.22,
+  perfectWindow: 0.10,
+  goodWindow: 0.18,
+  missWindow: 0.26,
   maxLives: 5,
   perfectScore: 300,
   goodScore: 100,
@@ -581,6 +821,8 @@ const CONFIG = {
   beatThresholdMultiplier: 1.6,
   frameSize: 2048,
   hopSize: 1024,
+  difficulty: 'medium',
+  speedMultiplier: 1,
 };
 
 const state = {
@@ -618,7 +860,6 @@ const previewCtx = previewOverlay.getContext('2d');
 const menuScreen = document.getElementById('menuScreen');
 const loadingScreen = document.getElementById('loadingScreen');
 const calibrationScreen = document.getElementById('calibrationScreen');
-const gameOverScreen = document.getElementById('gameOverScreen');
 const musicFileInput = document.getElementById('musicFileInput');
 const fileInputLabel = document.getElementById('fileInputLabel');
 const startBtn = document.getElementById('startBtn');
@@ -626,10 +867,6 @@ const loadingBar = document.getElementById('loadingBar');
 const calibrationStatus = document.getElementById('calibrationStatus');
 const calibrationReadyBtn = document.getElementById('calibrationReadyBtn');
 const calibrationSkipBtn = document.getElementById('calibrationSkipBtn');
-const finalScore = document.getElementById('finalScore');
-const finalCombo = document.getElementById('finalCombo');
-const finalAccuracy = document.getElementById('finalAccuracy');
-const finalStats = document.getElementById('finalStats');
 const replayBtn = document.getElementById('replayBtn');
 const menuBtn = document.getElementById('menuBtn');
 const quitBtn = document.getElementById('quitBtn');
@@ -638,6 +875,26 @@ const calibrationVideo = document.getElementById('calibrationVideo');
 const cameraPreview = document.getElementById('cameraPreview');
 const countdownOverlay = document.getElementById('countdownOverlay');
 const countdownText = document.getElementById('countdownText');
+const hitRatingEl = document.getElementById('hitRating');
+const gameHUD = document.getElementById('gameHUD');
+const pauseBtn = document.getElementById('pauseBtn');
+const songProgress = document.getElementById('songProgress');
+const songTime = document.getElementById('songTime');
+const resultsScreen = document.getElementById('resultsScreen');
+const resultsTitle = document.getElementById('resultsTitle');
+const resultsSubtitle = document.getElementById('resultsSubtitle');
+const resultsScore = document.getElementById('resultsScore');
+const resultsMaxCombo = document.getElementById('resultsMaxCombo');
+const resultsStats = document.getElementById('resultsStats');
+const resultsAccuracy = document.getElementById('resultsAccuracy');
+const resultsRank = document.getElementById('resultsRank');
+const resultsIcon = document.getElementById('resultsIcon');
+const toastContainer = document.getElementById('toastContainer');
+const speedSlider = document.getElementById('speedSlider');
+const speedValue = document.getElementById('speedValue');
+let particles = [];
+let pauseTime = 0;
+let ratingTimeout = null;
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -1233,6 +1490,124 @@ async function initCamera(videoEl, callback) {
   }
 }
 
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast-msg';
+  el.textContent = msg;
+  toastContainer.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2000);
+}
+
+function createHitParticles(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 1) * 8,
+      r: Math.random() * 3 + 1,
+      color,
+      life: 1,
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 4 * dt;
+    p.life -= dt * 2.5;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles(ctx) {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function showRating(text, color) {
+  hitRatingEl.textContent = text;
+  hitRatingEl.style.color = color;
+  hitRatingEl.classList.add('show');
+  if (ratingTimeout) clearTimeout(ratingTimeout);
+  ratingTimeout = setTimeout(() => {
+    hitRatingEl.classList.remove('show');
+  }, 400);
+}
+
+function playTapSound(lane) {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  const freqs = [523.25, 659.25, 783.99, 1046.5];
+  osc.frequency.setValueAtTime(freqs[lane] || 523.25, ctx.currentTime);
+  osc.type = 'triangle';
+  gain.gain.setValueAtTime(0.08, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.12);
+}
+
+function togglePause() {
+  if (state.gameStatus !== 'playing' || state.countdownActive) return;
+  const ctx = getAudioContext();
+  if (ctx.state === 'running') {
+    ctx.suspend();
+    pauseTime = ctx.currentTime - state.startTime;
+    pauseBtn.textContent = '▶';
+    state.isPlaying = false;
+    showToast('⏸ Tạm dừng');
+  } else if (ctx.state === 'suspended') {
+    ctx.resume();
+    state.startTime = ctx.currentTime - pauseTime;
+    pauseBtn.textContent = '⏸';
+    state.isPlaying = true;
+    showToast('▶ Tiếp tục');
+  }
+}
+
+function updateProgress() {
+  if (!state.isPlaying && state.gameStatus !== 'playing') return;
+  const ctx = getAudioContext();
+  if (!state.audioBuffer) return;
+  const elapsed = ctx.currentTime - state.startTime;
+  const dur = state.audioBuffer.duration;
+  const pct = Math.min(1, Math.max(0, elapsed / dur));
+  songProgress.style.width = (pct * 100) + '%';
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60);
+  songTime.textContent = m + ':' + s.toString().padStart(2, '0');
+}
+
+function checkVictory() {
+  if (state.gameStatus !== 'playing') return;
+  const allHit = state.notes.every(n => n.hit);
+  if (allHit && state.hitNotes > 0) {
+    endGame(true);
+  }
+}
+
+function getRank(score, total, hit) {
+  const acc = total > 0 ? hit / total : 0;
+  if (acc < 0.5) return { rank: 'D', color: '#ff6b6b' };
+  if (acc < 0.7) return { rank: 'C', color: '#ffd93d' };
+  if (acc < 0.85) return { rank: 'B', color: '#4d96ff' };
+  if (score > 3000 || acc >= 0.95) return { rank: 'S+', color: '#ffd93d' };
+  if (acc >= 0.85) return { rank: 'A', color: '#6bcb77' };
+  return { rank: 'B', color: '#4d96ff' };
+}
+
 let hitEffects = [];
 
 function hitNote(note, result) {
@@ -1252,6 +1627,14 @@ function hitNote(note, result) {
   if (state.combo > state.maxCombo) state.maxCombo = state.combo;
   state.hitNotes++;
   hitEffects.push({ lane: note.lane, time: 1, perfect: result === 'perfect' });
+  const laneW = canvas.width / CONFIG.lanes;
+  const x = note.lane * laneW + laneW / 2;
+  const hitY = canvas.height * CONFIG.hitZoneY;
+  const color = result === 'perfect' ? '#ffd93d' : '#6bcb77';
+  createHitParticles(x, hitY, color);
+  showRating(result === 'perfect' ? 'PERFECT' : 'GOOD', color);
+  playTapSound(note.lane);
+  checkVictory();
 }
 
 function missNote(note) {
@@ -1261,10 +1644,11 @@ function missNote(note) {
   state.misses++;
   state.combo = 0;
   state.lives--;
+  showRating('MISS', '#ff6b6b');
   if (state.lives <= 0) {
-    state.gameStatus = 'gameover';
+    state.lives = 0;
     stopAudio();
-    showGameOver();
+    endGame(false);
   }
 }
 
@@ -1394,7 +1778,7 @@ function render() {
     if (diff < -CONFIG.missWindow) continue;
     if (diff > 2) continue;
 
-    const y = hitY - diff * CONFIG.scrollSpeed;
+    const y = hitY - diff * CONFIG.scrollSpeed * CONFIG.speedMultiplier;
     if (y < -CONFIG.noteHeight || y > H + CONFIG.noteHeight) continue;
 
     const x = note.lane * laneW + laneW / 2;
@@ -1516,6 +1900,8 @@ function render() {
     ctx.fillText(camText, W - 24, 72);
   }
 
+  drawParticles(ctx);
+
   ctx.restore();
 }
 
@@ -1545,6 +1931,8 @@ function gameLoop(time) {
   }
 
   updateGame(dt);
+  updateParticles(dt);
+  updateProgress();
   render();
 
   requestAnimationFrame(gameLoop);
@@ -1571,6 +1959,7 @@ function showGame() {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   state.gameStatus = 'playing';
   quitBtn.style.display = 'block';
+  gameHUD.style.display = 'flex';
   if (state.cameraMode) {
     cameraPreview.style.display = 'block';
     document.getElementById('laneIndicator').style.display = 'block';
@@ -1579,20 +1968,39 @@ function showGame() {
   resizeCanvas();
 }
 
-function showGameOver() {
+function endGame(isVictory) {
   state.gameStatus = 'gameover';
+  stopAudio();
   quitBtn.style.display = 'none';
+  gameHUD.style.display = 'none';
   document.getElementById('laneIndicator').style.display = 'none';
-  finalScore.textContent = Math.floor(state.score).toLocaleString();
-  finalCombo.textContent = state.maxCombo;
   const total = state.perfects + state.goods + state.misses;
-  const acc = total > 0 ? Math.round((state.hitNotes) / total * 100) : 0;
-  finalAccuracy.textContent = acc + '%';
-  finalStats.textContent = `${state.perfects} / ${state.goods} / ${state.misses}`;
-  showScreen('gameOverScreen');
+  const acc = total > 0 ? Math.round(state.hitNotes / total * 100) : 0;
+  const r = getRank(state.score, total, state.hitNotes);
+
+  if (isVictory) {
+    resultsIcon.textContent = '🏆';
+    resultsTitle.textContent = 'CHIẾN THẮNG!';
+    resultsTitle.style.color = '#6bcb77';
+    resultsSubtitle.textContent = 'Bạn đã hoàn thành bài nhạc xuất sắc!';
+  } else {
+    resultsIcon.textContent = '💔';
+    resultsTitle.textContent = 'THẤT BẠI!';
+    resultsTitle.style.color = '#ff6b6b';
+    resultsSubtitle.textContent = 'Hãy thử lại để cải thiện nhé!';
+  }
+  resultsScore.textContent = Math.floor(state.score).toLocaleString();
+  resultsMaxCombo.textContent = state.maxCombo + 'x';
+  resultsStats.textContent = `${state.perfects} / ${state.goods} / ${state.misses}`;
+  resultsAccuracy.textContent = acc + '%';
+  resultsRank.textContent = r.rank;
+  resultsRank.style.color = r.color;
+
+  showScreen('resultsScreen');
   stopCamera();
   cameraPreview.style.display = 'none';
   countdownOverlay.style.display = 'none';
+  document.getElementById('laneIndicator').style.display = 'none';
   state.countdownActive = false;
   state.countdown = 0;
 }
@@ -1625,6 +2033,9 @@ function showMenu() {
   stopCamera();
   cameraPreview.style.display = 'none';
   document.getElementById('laneIndicator').style.display = 'none';
+  gameHUD.style.display = 'none';
+  particles = [];
+  pauseBtn.textContent = '⏸';
 }
 
 musicFileInput.addEventListener('change', async (e) => {
@@ -1743,6 +2154,21 @@ function startGame() {
 
 replayBtn.addEventListener('click', startGame);
 menuBtn.addEventListener('click', showMenu);
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    CONFIG.difficulty = btn.dataset.diff;
+  });
+});
+
+speedSlider.addEventListener('input', () => {
+  CONFIG.speedMultiplier = parseFloat(speedSlider.value);
+  speedValue.textContent = CONFIG.speedMultiplier.toFixed(1) + 'x';
+});
+
+pauseBtn.addEventListener('click', togglePause);
 quitBtn.addEventListener('click', () => {
   stopAudio();
   showMenu();
