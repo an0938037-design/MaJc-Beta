@@ -1096,8 +1096,13 @@ function generateNotes(beats) {
   let lastLane = -1;
   let repeatCount = 0;
 
+  const estHeight = window.innerHeight || 800;
+  const hitY = estHeight * 0.78;
+  const speed = CONFIG.scrollSpeed * Math.max(0.5, CONFIG.speedMultiplier || 1);
+  const minStartTime = hitY / speed + 0.1;
+
   for (let i = 0; i < beats.length; i++) {
-    if (beats[i] < 1.8) continue;
+    if (beats[i] < minStartTime) continue;
     let lane;
     do {
       lane = Math.floor(Math.random() * CONFIG.lanes);
@@ -1778,7 +1783,7 @@ function render() {
     if (note.hit) continue;
     const diff = note.time - now;
     if (diff < -CONFIG.missWindow) continue;
-    if (diff > 2) continue;
+    if (diff > 5) continue;
 
     const y = hitY - diff * CONFIG.scrollSpeed * CONFIG.speedMultiplier;
     if (y < -CONFIG.noteHeight || y > H + CONFIG.noteHeight) continue;
