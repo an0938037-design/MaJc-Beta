@@ -383,7 +383,7 @@ h1 {
   left: 50%;
   transform: translateX(-50%);
   width: min(400px, 75vw);
-  height: 32px;
+  height: 38px;
   background: rgba(255,255,255,0.85);
   border-radius: 8px;
   z-index: 5;
@@ -476,13 +476,9 @@ h1 {
 </div>
 
 <div id="laneIndicator">
-  <div class="lane-divider" style="left:25%"></div>
   <div class="lane-divider" style="left:50%"></div>
-  <div class="lane-divider" style="left:75%"></div>
-  <div class="lane-label" style="left:12.5%">L1</div>
-  <div class="lane-label" style="left:37.5%">L2</div>
-  <div class="lane-label" style="left:62.5%">L3</div>
-  <div class="lane-label" style="left:87.5%">L4</div>
+  <div class="lane-label" style="left:25%;color:rgba(0,0,0,0.4);font-size:9px">L1(NẮM)/L2(MỞ)</div>
+  <div class="lane-label" style="left:75%;color:rgba(0,0,0,0.4);font-size:9px">L3(NẮM)/L4(MỞ)</div>
   <div class="hand-dot" id="leftHandDot"></div>
   <div class="hand-dot" id="rightHandDot"></div>
 </div>
@@ -515,7 +511,7 @@ h1 {
   <button class="btn btn-demo" id="offlineBtn">Chơi offline (nhạc tự tạo)</button>
   <div style="margin-top:12px;color:rgba(255,255,255,0.3);font-size:12px;text-align:center;max-width:360px;line-height:1.7;">
     <strong style="color:rgba(255,255,255,0.6);">Phím:</strong> 1 2 3 4 &bull; Nhấn để bấm nốt<br>
-    Camera: tay trái &rarr; L1-L2 | tay phải &rarr; L3-L4
+    Camera: tay trái nắm=L1, mở=L2 | tay phải nắm=L3, mở=L4
   </div>
 </div>
 
@@ -531,7 +527,7 @@ h1 {
   <div class="calibration-box">
     <h2>Camera Calibration</h2>
     <p style="color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:8px;">
-      Đưa 2 tay vào khung hình. Di chuyển tay trái/phải để chọn làn L1-L4
+      Tay trái nắm = L1, mở = L2 &bull; Tay phải nắm = L3, mở = L4
     </p>
     <div class="calibration-camera">
       <video id="calibrationVideo" autoplay playsinline></video>
@@ -606,7 +602,7 @@ const state = {
   misses: 0,
   gameStatus: 'idle',
   cameraMode: false,
-  handLanes: [],
+  handGestures: {}, // { left: 'fist'|'open'|null, right: 'fist'|'open'|null }
   coveredLanes: new Set(),
   keysPressed: { '1': false, '2': false, '3': false, '4': false },
   nextNoteIndex: 0,
@@ -653,18 +649,22 @@ resizeCanvas();
 function buildCameraZones() {
   const existing = cameraPreview.querySelectorAll('.camera-zone-line, .camera-zone-label');
   existing.forEach(el => el.remove());
-  for (const pct of [25, 50, 75]) {
+  for (const pct of [50]) {
     const line = document.createElement('div');
     line.className = 'camera-zone-line';
     line.style.left = pct + '%';
     cameraPreview.appendChild(line);
   }
-  for (let i = 0; i < 4; i++) {
+  const zones = [
+    { label: 'L1 (nắm) / L2 (mở)', left: 0, w: 50 },
+    { label: 'L3 (nắm) / L4 (mở)', left: 50, w: 50 },
+  ];
+  for (const z of zones) {
     const label = document.createElement('div');
     label.className = 'camera-zone-label';
-    label.style.left = (i * 25) + '%';
-    label.style.width = '25%';
-    label.textContent = 'L' + (i + 1);
+    label.style.left = z.left + '%';
+    label.style.width = z.w + '%';
+    label.textContent = z.label;
     cameraPreview.appendChild(label);
   }
 }
@@ -951,6 +951,20 @@ function getTime() {
   return audioContext.currentTime - state.startTime;
 }
 
+function isFist(lm) {
+  const tips = [8, 12, 16, 20];
+  const pips = [6, 10, 14, 18];
+  let curled = 0;
+  for (let i = 0; i < 4; i++) {
+    if (lm[tips[i]].y > lm[pips[i]].y) curled++;
+  }
+  const thumbTip = lm[4], thumbIp = lm[3], thumbMcp = lm[2];
+  const thumbDist = Math.hypot(thumbTip.x - thumbMcp.x, thumbTip.y - thumbMcp.y);
+  const thumbRef = Math.hypot(thumbIp.x - thumbMcp.x, thumbIp.y - thumbMcp.y);
+  if (thumbDist < thumbRef * 0.7) curled++;
+  return curled >= 3;
+}
+
 let hands = null;
 let camera = null;
 let cameraStream = null;
@@ -963,6 +977,8 @@ function stopCamera() {
     cameraStream = null;
   }
   hands = null;
+  state.handGestures = {};
+  state.coveredLanes = new Set();
   cameraPreview.style.display = 'none';
   document.getElementById('laneIndicator').style.display = 'none';
 }
@@ -990,55 +1006,39 @@ async function initCamera(videoEl, callback) {
       minTrackingConfidence: 0.15,
     });
 
-    const handLane = {};
-    const handPosSmooth = {};
-    function getHandLane(lm, hIdx) {
-      const palmX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
-      const mirroredX = 1 - palmX;
-      if (!handPosSmooth[hIdx]) handPosSmooth[hIdx] = mirroredX;
-      handPosSmooth[hIdx] = handPosSmooth[hIdx] * 0.7 + mirroredX * 0.3;
-      const smoothX = handPosSmooth[hIdx];
-      if (!handLane[hIdx]) handLane[hIdx] = Math.min(3, Math.max(0, Math.floor(smoothX * 4)));
-      const curr = handLane[hIdx];
-      const raw = Math.min(3, Math.max(0, Math.floor(smoothX * 4)));
-      if (raw !== curr) {
-        const centerCurr = (curr + 0.5) / 4;
-        const centerRaw = (raw + 0.5) / 4;
-        if (Math.abs(smoothX - centerRaw) < Math.abs(smoothX - centerCurr) - 0.06) {
-          handLane[hIdx] = raw;
-        }
-      }
-      return handLane[hIdx];
-    }
-
     h.onResults(results => {
-      state.handLanes = [];
+      const gestures = { left: null, right: null };
       state.coveredLanes = new Set();
 
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+      if (results.multiHandLandmarks && results.multiHandedness) {
         for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
           const lm = results.multiHandLandmarks[hIdx];
-          if (!lm[0]) continue;
-          const lane = getHandLane(lm, hIdx);
-          state.handLanes.push(lane);
-          state.coveredLanes.add(lane);
+          const label = results.multiHandedness[hIdx].label;
+          const side = label === 'Left' ? 'left' : 'right';
+          const fist = isFist(lm);
+          gestures[side] = fist ? 'fist' : 'open';
+          if (side === 'left') {
+            state.coveredLanes.add(fist ? 0 : 1);
+          } else {
+            state.coveredLanes.add(fist ? 2 : 3);
+          }
         }
       }
+      state.handGestures = gestures;
 
       const leftDot = document.getElementById('leftHandDot');
       const rightDot = document.getElementById('rightHandDot');
       leftDot.style.display = 'none';
       rightDot.style.display = 'none';
-      if (results.multiHandLandmarks) {
+      if (results.multiHandLandmarks && results.multiHandedness) {
         for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
           const lm = results.multiHandLandmarks[hIdx];
-          if (!lm[0]) continue;
+          const label = results.multiHandedness[hIdx].label;
+          const side = label === 'Left' ? 'left' : 'right';
+          const dot = side === 'left' ? leftDot : rightDot;
           const palmX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
           const mirroredX = 1 - palmX;
-          const sensitivity = 1.35;
-          const sensitiveX = 0.5 + (mirroredX - 0.5) * sensitivity;
-          const pct = Math.min(98, Math.max(2, sensitiveX * 100));
-          const dot = hIdx === 0 ? leftDot : rightDot;
+          const pct = Math.min(95, Math.max(5, mirroredX * 100));
           dot.style.display = 'block';
           dot.style.left = pct + '%';
         }
@@ -1052,19 +1052,37 @@ async function initCamera(videoEl, callback) {
         const pctx = previewCtx;
         pctx.clearRect(0, 0, cw, ch);
 
-        for (let i = 1; i < 4; i++) {
-          pctx.strokeStyle = 'rgba(255,255,255,0.12)';
-          pctx.lineWidth = 1;
-          pctx.beginPath();
-          pctx.moveTo(cw * i / 4, 0);
-          pctx.lineTo(cw * i / 4, ch);
-          pctx.stroke();
+        pctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        pctx.lineWidth = 1;
+        pctx.beginPath();
+        pctx.moveTo(cw / 2, 0);
+        pctx.lineTo(cw / 2, ch);
+        pctx.stroke();
+
+        pctx.fillStyle = 'rgba(255,255,255,0.06)';
+        pctx.font = 'bold 9px "Segoe UI", system-ui, sans-serif';
+        pctx.textAlign = 'center';
+        if (gestures.left) {
+          pctx.fillStyle = gestures.left === 'fist' ? '#ffd93d' : '#6bcb77';
+          pctx.fillText('TAY TRÁI: ' + (gestures.left === 'fist' ? 'NẮM → L1' : 'MỞ → L2'), cw * 0.25, 16);
+        } else {
+          pctx.fillStyle = 'rgba(255,255,255,0.2)';
+          pctx.fillText('TAY TRÁI: ---', cw * 0.25, 16);
+        }
+        if (gestures.right) {
+          pctx.fillStyle = gestures.right === 'fist' ? '#4d96ff' : '#6bcb77';
+          pctx.fillText('TAY PHẢI: ' + (gestures.right === 'fist' ? 'NẮM → L3' : 'MỞ → L4'), cw * 0.75, 16);
+        } else {
+          pctx.fillStyle = 'rgba(255,255,255,0.2)';
+          pctx.fillText('TAY PHẢI: ---', cw * 0.75, 16);
         }
 
-        if (results.multiHandLandmarks) {
+        if (results.multiHandLandmarks && results.multiHandedness) {
           for (let hIdx = 0; hIdx < results.multiHandLandmarks.length; hIdx++) {
             const lm = results.multiHandLandmarks[hIdx];
-            const color = hIdx === 0 ? '#ffd93d' : '#4d96ff';
+            const label = results.multiHandedness[hIdx].label;
+            const side = label === 'Left' ? 'left' : 'right';
+            const color = side === 'left' ? '#ffd93d' : '#4d96ff';
 
             drawConnectors(pctx, lm, HAND_CONNECTIONS, { color, lineWidth: 1.5 });
             for (const p of lm) {
@@ -1073,17 +1091,6 @@ async function initCamera(videoEl, callback) {
               pctx.fillStyle = color;
               pctx.fill();
             }
-
-            const lane = getHandLane(lm, hIdx);
-            const label = hIdx === 0 ? 'TAY TRÁI' : 'TAY PHẢI';
-            pctx.fillStyle = color;
-            pctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
-            pctx.textAlign = 'center';
-            pctx.shadowColor = color;
-            pctx.shadowBlur = 10;
-            const labelX = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
-            pctx.fillText(`L${lane+1} ${label}`, (1 - labelX) * cw, ch - 14);
-            pctx.shadowBlur = 0;
           }
         }
       }
@@ -1238,9 +1245,11 @@ function render() {
   if (state.cameraMode) {
     for (const lane of covered) {
       const lx = lane * laneW;
-      ctx.fillStyle = 'rgba(107,203,119,0.08)';
+      const isLeftSide = lane < 2;
+      const col = isLeftSide ? '255,217,61' : '77,150,255';
+      ctx.fillStyle = 'rgba(' + col + ',0.08)';
       ctx.fillRect(lx, 0, laneW, H);
-      ctx.fillStyle = 'rgba(107,203,119,0.15)';
+      ctx.fillStyle = 'rgba(' + col + ',0.2)';
       ctx.fillRect(lx, hitY - 15, laneW, 30);
     }
   }
@@ -1379,10 +1388,16 @@ function render() {
   ctx.fillText('1 2 3 4', W - 24, 55);
 
   if (state.cameraMode) {
-    ctx.fillStyle = state.coveredLanes.size > 0 ? 'rgba(107,203,119,0.3)' : 'rgba(255,107,107,0.3)';
-    ctx.font = '12px "Segoe UI", system-ui, sans-serif';
+    const g = state.handGestures;
+    let camText = 'CAM: ';
+    if (g.left) camText += (g.left === 'fist' ? 'L1' : 'L2');
+    if (g.left && g.right) camText += ' | ';
+    if (g.right) camText += (g.right === 'fist' ? 'L3' : 'L4');
+    if (!g.left && !g.right) camText += '...';
+    ctx.fillStyle = state.coveredLanes.size > 0 ? 'rgba(107,203,119,0.5)' : 'rgba(255,107,107,0.3)';
+    ctx.font = 'bold 13px "Segoe UI", system-ui, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('CAM', W - 24, 72);
+    ctx.fillText(camText, W - 24, 72);
   }
 
   ctx.restore();
@@ -1482,7 +1497,7 @@ function showMenu() {
   state.isPlaying = false;
   state.nextNoteIndex = 0;
   state.coveredLanes = new Set();
-  state.handLanes = [];
+  state.handGestures = {};
   state.countdown = 0;
   state.countdownActive = false;
   state.cameraMode = false;
@@ -1531,11 +1546,14 @@ async function initCalibrationCamera() {
   calibrationStatus.innerHTML = '<span class="waiting">Đang xin quyền camera...</span>';
 
   const ok = await initCamera(calibrationVideo, (results) => {
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const g = state.handGestures;
+    if (g.left || g.right) {
       calibrationReadyBtn.disabled = false;
-      const numHands = results.multiHandLandmarks.length;
+      let parts = [];
+      if (g.left) parts.push(`Trái: ${g.left === 'fist' ? 'NẮM→L1' : 'MỞ→L2'}`);
+      if (g.right) parts.push(`Phải: ${g.right === 'fist' ? 'NẮM→L3' : 'MỞ→L4'}`);
       calibrationStatus.innerHTML =
-        `<span class="ready">Đã phát hiện ${numHands} tay! Nhấn "Sẵn sàng!" để bắt đầu.</span>`;
+        `<span class="ready">${parts.join(' | ')}</span>`;
     } else {
       calibrationReadyBtn.disabled = true;
       calibrationStatus.innerHTML = '<span class="waiting">Đưa tay vào khung hình...</span>';
@@ -1590,7 +1608,7 @@ function startGame() {
   state.hitNotes = 0;
   state.nextNoteIndex = 0;
   state.coveredLanes = new Set();
-  state.handLanes = [];
+  state.handGestures = {};
   hitEffects = [];
 
   state.notes = generateNotes(state.beats);
