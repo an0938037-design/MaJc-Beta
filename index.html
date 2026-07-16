@@ -762,13 +762,39 @@ function detectBeats(audioBuffer) {
     bandFlux[2][i] = (bandFlux[2][i] / (bandSizes[2] || 1)) * bandWeights[2];
   }
 
+  // Vocal presence ratio: how much energy is in the mid (voice) band
+  const vocalRatio = new Float32Array(numFrames);
+  for (let i = 1; i < numFrames; i++) {
+    const total = bandFlux[0][i] + bandFlux[1][i] + bandFlux[2][i];
+    vocalRatio[i] = total > 0.001 ? bandFlux[1][i] / total : 0;
+  }
+
+  // Smooth vocal ratio over 300ms to avoid rapid switching
+  const vWin = Math.max(1, Math.floor(0.3 * sampleRate / H));
+  const smoothVocal = new Float32Array(numFrames);
+  for (let i = 0; i < numFrames; i++) {
+    let s = 0, c = 0;
+    const start = Math.max(0, i - vWin);
+    const end = Math.min(numFrames, i + vWin + 1);
+    for (let j = start; j < end; j++) {
+      s += vocalRatio[j]; c++;
+    }
+    smoothVocal[i] = c > 0 ? s / c : 0;
+  }
+
+  // Adaptive band combination: vocal sections favor mid band, instrumental favors low+high
   const combined = new Float32Array(numFrames);
   for (let i = 1; i < numFrames; i++) {
-    combined[i] = bandFlux[0][i] + bandFlux[1][i] + bandFlux[2][i];
+    const v = smoothVocal[i];
+    const lw = 1.2 * (1 - v * 0.3);
+    const mw = 0.4 + v * 1.6;
+    const hw = 0.8 * (1 - v * 0.2);
+    combined[i] = bandFlux[0][i] * lw + bandFlux[1][i] * mw + bandFlux[2][i] * hw;
   }
 
   const wSize = Math.max(1, Math.floor(0.15 * sampleRate / H));
   const threshold = new Float32Array(numFrames);
+  const multiplier = Math.max(CONFIG.beatThresholdMultiplier, 2.2);
   for (let i = 0; i < numFrames; i++) {
     let s = 0, c = 0;
     const start = Math.max(0, i - wSize);
@@ -776,11 +802,11 @@ function detectBeats(audioBuffer) {
     for (let j = start; j < end; j++) {
       s += combined[j]; c++;
     }
-    threshold[i] = (s / c) * CONFIG.beatThresholdMultiplier;
+    threshold[i] = c > 0 ? (s / c) * multiplier : 0;
   }
 
   const beats = [];
-  const minSep = Math.floor(CONFIG.minBeatInterval * sampleRate / H);
+  const minSep = Math.floor(Math.max(CONFIG.minBeatInterval, 0.2) * sampleRate / H);
   let lastBeat = -minSep;
 
   for (let i = 2; i < numFrames - 2; i++) {
