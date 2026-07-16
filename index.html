@@ -1345,6 +1345,7 @@ async function loadDefaultAudio(songId) {
     startBtn.textContent = 'Start Game';
     fileInputLabel.textContent = song.display + ' (' + song.difficulty + ')';
     showScreen('menuScreen');
+    menuPlayer.offset = 0;
     menuPlay();
   } catch (err) {
     console.warn('Failed to load remote audio, using procedural:', err);
@@ -1380,6 +1381,7 @@ function useProceduralAudio(label) {
       fileInputLabel.textContent = 'Procedural Beat (offline)';
       fileInputLabel.classList.add('has-file');
       showScreen('menuScreen');
+      menuPlayer.offset = 0;
       menuPlay();
     } catch (e) {
       console.error('Procedural audio failed:', e);
@@ -2234,6 +2236,7 @@ musicFileInput.addEventListener('change', async (e) => {
     startBtn.disabled = false;
     startBtn.textContent = 'Start Game';
     showScreen('menuScreen');
+    menuPlayer.offset = 0;
     menuPlay();
   } catch (err) {
     console.error('Analysis failed:', err);
