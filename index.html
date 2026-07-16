@@ -512,12 +512,10 @@ h1 {
     <label class="file-input-label" id="fileInputLabel">Chọn file nhạc (MP3 / WAV / FLAC)</label>
   </div>
   <button class="btn btn-primary" id="startBtn" disabled>Start Game</button>
-  <button class="btn btn-demo" id="demoBtn">Demo</button>
-  <canvas id="simCanvas"></canvas>
+  <button class="btn btn-demo" id="offlineBtn">Chơi offline (nhạc tự tạo)</button>
   <div style="margin-top:12px;color:rgba(255,255,255,0.3);font-size:12px;text-align:center;max-width:360px;line-height:1.7;">
-    <strong style="color:rgba(255,255,255,0.6);">Camera:</strong> Tay tr&aacute;i &rarr; L1-L2 | Tay phải &rarr; L3-L4<br>
-    Di chuyển tay sang tr&aacute;i/phải để chuyển l&agrave;n!<br>
-    <span style="color:rgba(255,255,255,0.15);">Ph&iacute;m: 1 2 3 4 (giữ để cover l&agrave;n)</span>
+    <strong style="color:rgba(255,255,255,0.6);">Phím:</strong> 1 2 3 4 &bull; Nhấn để bấm nốt<br>
+    Camera: tay trái &rarr; L1-L2 | tay phải &rarr; L3-L4
   </div>
 </div>
 
@@ -638,8 +636,6 @@ const finalStats = document.getElementById('finalStats');
 const replayBtn = document.getElementById('replayBtn');
 const menuBtn = document.getElementById('menuBtn');
 const quitBtn = document.getElementById('quitBtn');
-const demoBtn = document.getElementById('demoBtn');
-const simCanvas = document.getElementById('simCanvas');
 const previewVideo = document.getElementById('previewVideo');
 const calibrationVideo = document.getElementById('calibrationVideo');
 const cameraPreview = document.getElementById('cameraPreview');
@@ -650,10 +646,6 @@ function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   buildCameraZones();
-  if (demoActive) {
-    simCanvas.width = simCanvas.clientWidth || 200;
-    simCanvas.height = simCanvas.clientHeight || 400;
-  }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -764,6 +756,7 @@ function generateNotes(beats) {
       result: null,
     });
   }
+  state.totalNotes = notes.length;
   return notes;
 }
 
@@ -818,6 +811,54 @@ const DEMO_SONGS = {
   },
 };
 
+async function fetchWithTimeout(url, ms = 8000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    return resp;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+function generateProceduralAudio(ctx) {
+  const duration = 45;
+  const sampleRate = ctx.sampleRate;
+  const numSamples = sampleRate * duration;
+  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
+  const data = buffer.getChannelData(0);
+  const bpm = 128;
+  const beatLen = 60 / bpm;
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    const beat = Math.floor(t / beatLen);
+    const off = t % beatLen;
+    let v = 0;
+
+    const kickFreq = Math.max(120 * Math.exp(-off * 50), 35);
+    v += Math.sin(2 * Math.PI * kickFreq * off) * Math.exp(-off * 5) * 0.5;
+
+    if (beat % 2 === 1) {
+      const noise = Math.random() * 2 - 1;
+      v += noise * Math.exp(-off * 30) * 0.06;
+    }
+
+    const bar = Math.floor(beat / 4);
+    const roots = [130.81, 164.81, 220.00, 196.00];
+    const root = roots[bar % roots.length];
+    const step = Math.floor(off / (beatLen / 4));
+    const mult = [1, 1.25, 1.5, 1.2][step % 4];
+    const freq = root * mult;
+    v += (Math.abs(((t * freq) % 1) - 0.5) * 4 - 1) * Math.exp(-off * 10) * 0.2;
+
+    data[i] = Math.max(-1, Math.min(1, v));
+  }
+
+  return buffer;
+}
+
 async function loadDefaultAudio(songId) {
   const song = DEMO_SONGS[songId];
   if (!song) return;
@@ -825,7 +866,7 @@ async function loadDefaultAudio(songId) {
   fileInputLabel.classList.add('has-file');
   showLoading();
   try {
-    const resp = await fetch(song.url);
+    const resp = await fetchWithTimeout(song.url, 8000);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const file = new File([blob], song.name, { type: 'audio/flac' });
@@ -838,11 +879,46 @@ async function loadDefaultAudio(songId) {
     fileInputLabel.textContent = song.display + ' (' + song.difficulty + ')';
     showScreen('menuScreen');
   } catch (err) {
-    console.error('Failed to load default audio:', err);
-    fileInputLabel.textContent = 'Chọn file nhạc (MP3 / WAV / FLAC)';
-    fileInputLabel.classList.remove('has-file');
-    showScreen('menuScreen');
+    console.warn('Failed to load remote audio, using procedural:', err);
+    useProceduralAudio(song.display);
   }
+}
+
+function useProceduralAudio(label) {
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') ctx.resume();
+
+  const bar = document.getElementById('loadingBar');
+  const status = document.querySelector('.loading-text');
+  status.textContent = 'Đang tạo nhạc nội bộ...';
+  bar.style.width = '30%';
+
+  setTimeout(() => {
+    try {
+      const audioBuffer = generateProceduralAudio(ctx);
+      bar.style.width = '60%';
+      state.audioBuffer = audioBuffer;
+
+      const beats = detectBeats(audioBuffer);
+      bar.style.width = '90%';
+      state.beats = beats;
+
+      const notes = generateNotes(beats);
+      state.notes = notes;
+      bar.style.width = '100%';
+
+      startBtn.disabled = false;
+      startBtn.textContent = 'Start Game';
+      fileInputLabel.textContent = 'Procedural Beat (offline)';
+      fileInputLabel.classList.add('has-file');
+      showScreen('menuScreen');
+    } catch (e) {
+      console.error('Procedural audio failed:', e);
+      fileInputLabel.textContent = 'Chọn file nhạc (MP3 / WAV / FLAC)';
+      fileInputLabel.classList.remove('has-file');
+      showScreen('menuScreen');
+    }
+  }, 100);
 }
 
 function startAudio(buffer, offset) {
@@ -892,6 +968,10 @@ function stopCamera() {
 }
 
 async function initCamera(videoEl, callback) {
+  if (typeof Hands === 'undefined' || typeof Camera === 'undefined') {
+    console.warn('MediaPipe libraries not loaded - camera unavailable');
+    return false;
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 160, height: 120, facingMode: 'user', frameRate: 20 }
@@ -945,7 +1025,6 @@ async function initCamera(videoEl, callback) {
         }
       }
 
-      // Update lane indicator dots
       const leftDot = document.getElementById('leftHandDot');
       const rightDot = document.getElementById('rightHandDot');
       leftDot.style.display = 'none';
@@ -1034,6 +1113,7 @@ async function initCamera(videoEl, callback) {
 let hitEffects = [];
 
 function hitNote(note, result) {
+  if (note.hit) return;
   note.hit = true;
   note.result = result;
   if (result === 'perfect') {
@@ -1052,6 +1132,7 @@ function hitNote(note, result) {
 }
 
 function missNote(note) {
+  if (note.hit) return;
   note.hit = true;
   note.result = 'miss';
   state.misses++;
@@ -1064,37 +1145,60 @@ function missNote(note) {
   }
 }
 
+// Keyboard hit: check for unhit notes in the given lane within the hit window
+function handleKeyHit(lane) {
+  if (state.gameStatus !== 'playing' || state.countdownActive) { return; }
+  const now = getTime();
+  let bestNote = null;
+  let bestDiff = Infinity;
+  for (const note of state.notes) {
+    if (note.hit) continue;
+    if (note.lane !== lane) continue;
+    const diff = Math.abs(now - note.time);
+    if (diff < bestDiff && diff <= CONFIG.goodWindow) {
+      bestDiff = diff;
+      bestNote = note;
+    }
+  }
+  if (bestNote) {
+    const result = bestDiff <= CONFIG.perfectWindow ? 'perfect' : 'good';
+    hitNote(bestNote, result);
+  }
+}
+
+// Camera hit: automatically hit notes when a hand covers the lane
+function handleCameraHits(now) {
+  for (const note of state.notes) {
+    if (note.hit) continue;
+    const diff = now - note.time;
+    if (state.coveredLanes.has(note.lane) && Math.abs(diff) <= CONFIG.perfectWindow) {
+      hitNote(note, 'perfect');
+    } else if (state.coveredLanes.has(note.lane) && Math.abs(diff) <= CONFIG.goodWindow && !note.hit) {
+      hitNote(note, 'good');
+    }
+  }
+}
+
 function updateGame(dt) {
   if (state.gameStatus !== 'playing' || !state.isPlaying) return;
   const now = getTime();
 
+  for (const key of ['1', '2', '3', '4']) {
+    if (state.keysPressed[key]) {
+      state.coveredLanes.add(parseInt(key) - 1);
+    }
+  }
 
+  if (state.cameraMode) {
+    handleCameraHits(now);
+  }
 
   for (const note of state.notes) {
     if (note.hit) continue;
     const diff = now - note.time;
-
-    if (state.cameraMode) {
-      if (state.coveredLanes.has(note.lane)) {
-        if (Math.abs(diff) <= CONFIG.perfectWindow) {
-          hitNote(note, 'perfect');
-        } else if (Math.abs(diff) <= CONFIG.goodWindow && !note.hit) {
-          hitNote(note, 'good');
-        }
-      }
-    }
-
-    if (!note.hit && diff > CONFIG.missWindow) {
+    if (diff > CONFIG.missWindow) {
       missNote(note);
       if (state.lives <= 0) return;
-    }
-  }
-
-  for (const key of ['1', '2', '3', '4']) {
-    const pressed = state.keysPressed[key];
-    if (pressed) {
-      const lane = parseInt(key) - 1;
-      state.coveredLanes.add(lane);
     }
   }
 
@@ -1269,16 +1373,16 @@ function render() {
     ctx.fillRect(bx, by, bw * p, bh);
   }
 
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.font = '16px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('1 2 3 4', W - 24, 55);
+
   if (state.cameraMode) {
     ctx.fillStyle = state.coveredLanes.size > 0 ? 'rgba(107,203,119,0.3)' : 'rgba(255,107,107,0.3)';
-    ctx.font = '16px "Segoe UI", system-ui, sans-serif';
+    ctx.font = '12px "Segoe UI", system-ui, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(state.coveredLanes.size > 0 ? 'CAM \u25C9' : 'CAM \u25CF', W - 24, 55);
-  } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '16px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('KEYS: 1 2 3 4', W - 24, 55);
+    ctx.fillText('CAM', W - 24, 72);
   }
 
   ctx.restore();
@@ -1395,7 +1499,6 @@ function showMenu() {
 musicFileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (demoActive) stopDemo();
   document.querySelectorAll('.demo-song').forEach(s => s.classList.remove('selected'));
   fileInputLabel.textContent = file.name;
   fileInputLabel.classList.add('has-file');
@@ -1490,14 +1593,12 @@ function startGame() {
   state.handLanes = [];
   hitEffects = [];
 
-  // Generate notes in startGame (called on each play/replay)
   state.notes = generateNotes(state.beats);
 
   state.countdown = CONFIG.readyDelay;
   state.countdownActive = true;
   showGame();
 
-  // Restart camera if needed (e.g., on replay after game over)
   if (state.cameraMode && !hands) {
     initCamera(previewVideo, null);
     cameraPreview.style.display = 'block';
@@ -1513,125 +1614,13 @@ quitBtn.addEventListener('click', () => {
   showMenu();
 });
 
-// Demo mode
-let demoActive = false;
-let simAnimId = null;
-let simNotes = [];
-let simTime = 0;
-
-function stopDemo() {
-  demoActive = false;
-  document.body.classList.remove('demo-mode');
-  if (simAnimId) { cancelAnimationFrame(simAnimId); simAnimId = null; }
-  stopCamera();
-  cameraPreview.style.display = 'none';
-  document.getElementById('laneIndicator').style.display = 'none';
-  simCanvas.style.display = 'none';
-  demoBtn.classList.remove('active');
-  demoBtn.textContent = 'Demo';
-}
-
-function startDemo() {
-  demoActive = true;
-  document.body.classList.add('demo-mode');
-  demoBtn.classList.add('active');
-  demoBtn.textContent = 'Tắt';
-  cameraPreview.style.display = 'block';
-  document.getElementById('laneIndicator').style.display = 'block';
-  simCanvas.style.display = 'block';
-  simCanvas.width = 200;
-  simCanvas.height = simCanvas.clientHeight || 400;
-  buildCameraZones();
-  simNotes = [];
-  simTime = 0;
-  const laneOrder = [0, 1, 2, 3];
-  for (let i = 0; i < 20; i++) {
-    simNotes.push({ lane: laneOrder[i % 4], time: i * 3, hit: false });
-  }
-  if (!hands) initCamera(previewVideo, null);
-  simRender(Date.now());
-}
-
-let simLastTime = 0;
-function simRender(now) {
-  if (!demoActive) return;
-  if (!simLastTime) simLastTime = now;
-  const dt = Math.min(0.05, (now - simLastTime) / 1000);
-  simLastTime = now;
-  simTime += dt;
-
-  // Check hits: demo notes hit when hand covers lane within ±0.5s
-  for (const n of simNotes) {
-    if (n.hit) continue;
-    if (state.coveredLanes.has(n.lane) && Math.abs(simTime - n.time) < 0.5) {
-      n.hit = true;
-    }
-  }
-
-  // Render simCanvas
-  const W = simCanvas.width;
-  const H = simCanvas.height;
-  const laneW = W / 4;
-  const hitY = H * 0.85;
-  const ctx = simCanvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H);
-
-  // Lanes
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * laneW, 0);
-    ctx.lineTo(i * laneW, H);
-    ctx.stroke();
-  }
-
-  // Hit zone
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
-  ctx.fillRect(0, hitY - 6, W, 12);
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.beginPath();
-  ctx.moveTo(0, hitY);
-  ctx.lineTo(W, hitY);
-  ctx.stroke();
-
-  // Notes
-  for (const n of simNotes) {
-    if (n.hit) continue;
-    const diff = simTime - n.time;
-    const y = hitY - diff * 80;
-    if (y < -20 || y > H + 20) continue;
-    const x = n.lane * laneW + laneW / 2;
-    ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = state.coveredLanes.has(n.lane) ? 'rgba(107,203,119,0.8)' : 'rgba(255,255,255,0.5)';
-    ctx.fill();
-    ctx.strokeStyle = state.coveredLanes.has(n.lane) ? '#6bcb77' : 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
-
-  simAnimId = requestAnimationFrame(simRender);
-}
-
-demoBtn.addEventListener('click', () => {
-  if (demoActive) { stopDemo(); return; }
-  if (!state.audioBuffer || state.beats.length === 0) {
-    // No song loaded, just show demo with camera + sim
-    startDemo();
-    return;
-  }
-  startDemo();
-});
-
-// Stop demo when starting the real game
-startBtn.addEventListener('click', () => { if (demoActive) stopDemo(); });
-
 document.addEventListener('keydown', (e) => {
   if (['1', '2', '3', '4'].includes(e.key)) {
     state.keysPressed[e.key] = true;
     state.cameraMode = false;
     e.preventDefault();
+    const lane = parseInt(e.key) - 1;
+    handleKeyHit(lane);
   }
   if (e.key === 'Enter' || e.key === ' ') {
     if (state.gameStatus === 'gameover') {
@@ -1661,16 +1650,21 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
-console.log('MaJc Tiles - 2-hand presence mode');
-console.log('Camera: put hands in lane zones. No tapping needed!');
-console.log('Keyboard: hold 1 2 3 4 to cover lanes');
+// Offline button: generate procedural audio instantly
+document.getElementById('offlineBtn').addEventListener('click', () => {
+  if (state.isPlaying) return;
+  fileInputLabel.textContent = 'Procedural Beat (offline)';
+  fileInputLabel.classList.add('has-file');
+  startBtn.disabled = true;
+  showLoading();
+  setTimeout(() => useProceduralAudio('Procedural Beat'), 50);
+});
 
 // Demo song selection
 let selectedSongId = 'come-my-way';
 document.querySelectorAll('.demo-song').forEach(el => {
   el.addEventListener('click', () => {
     if (state.isPlaying) return;
-    if (demoActive) stopDemo();
     document.querySelectorAll('.demo-song').forEach(s => s.classList.remove('selected'));
     el.classList.add('selected');
     selectedSongId = el.dataset.song;
@@ -1685,5 +1679,3 @@ loadDefaultAudio('come-my-way');
 </script>
 </body>
 </html>
-
-
