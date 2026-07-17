@@ -1278,12 +1278,27 @@ function generateNotes(beats) {
   const speed = CONFIG.scrollSpeed * Math.max(0.5, CONFIG.speedMultiplier || 1);
   const minStartTime = hitY / speed + 0.1;
 
+  // Difficulty settings
+  const diff = CONFIG.difficulty || 'medium';
+  const skipProb = diff === 'easy' ? 0.35 : diff === 'hard' ? 0.05 : 0.15;
+  const maxRepeat = diff === 'easy' ? 1 : diff === 'hard' ? 4 : 2;
+  const patternChance = diff === 'easy' ? 0.4 : 0.0;
+  let patternIndex = 0;
+  const patterns = [[0,1,2,3],[3,2,1,0],[0,2,1,3],[0,3,1,2]];
+
   for (let i = 0; i < beats.length; i++) {
     if (beats[i] < minStartTime) continue;
+    if (Math.random() < skipProb) continue;
+
     let lane;
-    do {
-      lane = Math.floor(Math.random() * CONFIG.lanes);
-    } while (lane === lastLane && repeatCount >= 2);
+    if (diff === 'easy' && Math.random() < patternChance) {
+      lane = patterns[patternIndex % patterns.length][i % 4];
+      patternIndex++;
+    } else {
+      do {
+        lane = Math.floor(Math.random() * CONFIG.lanes);
+      } while (lane === lastLane && repeatCount >= maxRepeat);
+    }
 
     if (lane === lastLane) {
       repeatCount++;
@@ -1300,6 +1315,7 @@ function generateNotes(beats) {
     });
   }
 
+  const maxConcurrent = diff === 'easy' ? 1 : diff === 'hard' ? 3 : 2;
   const filtered = [];
   for (const note of notes) {
     const visibleWindow = 2.5;
@@ -1309,7 +1325,7 @@ function generateNotes(beats) {
     for (const existing of filtered) {
       if (existing.time >= start && existing.time <= end) count++;
     }
-    if (count < 2) {
+    if (count < maxConcurrent) {
       filtered.push(note);
     }
   }
