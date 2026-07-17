@@ -1293,20 +1293,22 @@ function generateNotes(beats) {
   const isDemo = diff === 'demo';
 
   if (isDemo) {
-    // DEMO mode: no limits, density slider controls note count
+    // DEMO mode: no limits, density slider controls note count, zigzag lane pattern
     const density = CONFIG.noteDensity || 5;
-    // Density 1 → 0 extra, 5 → 4 extra, 10 → 9 extra per beat interval
     const extraPerBeat = density - 1;
+    const zigzag = [0, 1, 2, 3, 2, 1];
+    let zi = 0;
 
     for (let i = 0; i < beats.length; i++) {
       if (beats[i] < minStartTime) continue;
 
       notes.push({
         time: beats[i],
-        lane: Math.floor(Math.random() * CONFIG.lanes),
+        lane: zigzag[zi % zigzag.length],
         hit: false,
         result: null,
       });
+      zi++;
 
       if (extraPerBeat > 0 && i + 1 < beats.length) {
         const gap = beats[i + 1] - beats[i];
@@ -1315,10 +1317,11 @@ function generateNotes(beats) {
           if (t < beats[i + 1] - 0.04) {
             notes.push({
               time: t,
-              lane: Math.floor(Math.random() * CONFIG.lanes),
+              lane: zigzag[zi % zigzag.length],
               hit: false,
               result: null,
             });
+            zi++;
           }
         }
       }
