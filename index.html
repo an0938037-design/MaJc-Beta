@@ -1331,32 +1331,17 @@ function generateNotes(beats) {
     return notes;
   }
 
+  const zigzag = [0, 1, 2, 3, 2, 1];
+  let zi = 0;
   const skipProb = diff === 'easy' ? 0.3 : 0;
   const maxRepeat = diff === 'easy' ? 1 : diff === 'hard' ? 4 : 2;
-  const patternChance = diff === 'easy' ? 0.4 : 0.0;
-  let patternIndex = 0;
-  const patterns = [[0,1,2,3],[3,2,1,0],[0,2,1,3],[0,3,1,2]];
 
   for (let i = 0; i < beats.length; i++) {
     if (beats[i] < minStartTime) continue;
     if (Math.random() < skipProb) continue;
 
-    let lane;
-    if (diff === 'easy' && Math.random() < patternChance) {
-      lane = patterns[patternIndex % patterns.length][i % 4];
-      patternIndex++;
-    } else {
-      do {
-        lane = Math.floor(Math.random() * CONFIG.lanes);
-      } while (lane === lastLane && repeatCount >= maxRepeat);
-    }
-
-    if (lane === lastLane) {
-      repeatCount++;
-    } else {
-      repeatCount = 0;
-    }
-    lastLane = lane;
+    const lane = zigzag[zi % zigzag.length];
+    zi++;
 
     notes.push({
       time: beats[i],
@@ -1371,10 +1356,11 @@ function generateNotes(beats) {
       if (Math.random() < 0.10 && halfTime - beats[i] > 0.12) {
         notes.push({
           time: halfTime,
-          lane: Math.floor(Math.random() * CONFIG.lanes),
+          lane: zigzag[zi % zigzag.length],
           hit: false,
           result: null,
         });
+        zi++;
       }
     }
   }
