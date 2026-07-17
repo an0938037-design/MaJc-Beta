@@ -1351,34 +1351,40 @@ function timeoutPromise(promise, ms) {
   ]);
 }
 
-async function loadAndAnalyzeMusic(file) {
+async function loadAndAnalyzeMusic(file, background) {
   const loadStatus = document.querySelector('.loading-text');
   const bar = document.getElementById('loadingBar');
   loadStatus.textContent = 'Đang đọc file nhạc...';
   const ab = await file.arrayBuffer();
-  bar.style.width = '30%';
+  if (!background) bar.style.width = '30%';
   loadStatus.textContent = 'Đang giải mã FLAC...';
   const ctx = getAudioContext();
   if (ctx.state === 'suspended') await ctx.resume();
   const audioBuffer = await timeoutPromise(ctx.decodeAudioData(ab), 15000);
-  bar.style.width = '50%';
+  if (!background) bar.style.width = '50%';
   loadStatus.textContent = 'Đang phân tích nhịp...';
 
-  const animSteps = ['60%', '65%', '70%', '75%', '78%', '80%', '82%', '84%'];
-  let si = 0;
-  const animInterval = setInterval(() => {
-    if (si < animSteps.length) bar.style.width = animSteps[si++];
-  }, 2000);
+  let beats;
+  if (!background) {
+    const animSteps = ['60%', '65%', '70%', '75%', '78%', '80%', '82%', '84%'];
+    let si = 0;
+    const animInterval = setInterval(() => {
+      if (si < animSteps.length) bar.style.width = animSteps[si++];
+    }, 2000);
 
-  const beats = await new Promise(r => {
-    setTimeout(() => {
-      try { r(detectBeats(audioBuffer)); }
-      catch (e) { r([]); }
-    }, 10);
-  });
+    beats = await new Promise(r => {
+      setTimeout(() => {
+        try { r(detectBeats(audioBuffer)); }
+        catch (e) { r([]); }
+      }, 10);
+    });
 
-  clearInterval(animInterval);
-  bar.style.width = '90%';
+    clearInterval(animInterval);
+    bar.style.width = '90%';
+  } else {
+    beats = detectBeats(audioBuffer);
+    bar.style.width = '90%';
+  }
   loadStatus.textContent = 'Đang tạo note...';
   const notes = generateNotes(beats);
   bar.style.width = '100%';
@@ -1456,23 +1462,24 @@ function generateProceduralAudio(ctx) {
   return buffer;
 }
 
-async function loadDefaultAudio(songId) {
+async function loadDefaultAudio(songId, background) {
   const song = DEMO_SONGS[songId];
   if (!song) return;
   fileInputLabel.textContent = 'Đang tải ' + song.display + '...';
   fileInputLabel.classList.add('has-file');
-  showLoading();
+  startBtn.disabled = true;
+  if (!background) showLoading();
   const loadStatus = document.querySelector('.loading-text');
   const bar = document.getElementById('loadingBar');
   try {
     loadStatus.textContent = 'Đang tải ' + song.display + ' (' + (song.difficulty === 'hard' ? '23MB' : '14MB') + ')...';
-    bar.style.width = '3%';
+    if (!background) bar.style.width = '3%';
     const blob = await fetchWithProgress(song.url, (pct) => {
-      bar.style.width = Math.round(pct * 25) + '%';
+      if (!background) bar.style.width = Math.round(pct * 25) + '%';
     });
-    bar.style.width = '28%';
+    if (!background) bar.style.width = '28%';
     const file = new File([blob], song.name, { type: 'audio/flac' });
-    const result = await loadAndAnalyzeMusic(file);
+    const result = await loadAndAnalyzeMusic(file, background);
     state.audioBuffer = result.audioBuffer;
     state.beats = result.beats;
     state.notes = result.notes;
@@ -1485,21 +1492,21 @@ async function loadDefaultAudio(songId) {
   } catch (err) {
     console.warn('Failed to load remote audio:', err);
     showToast('Tải/thời gian chờ, đang chuyển sang offline...');
-    showLoading();
+    if (!background) showLoading();
     document.querySelector('.loading-text').textContent = 'Đang chuyển sang chế độ offline...';
     await new Promise(r => setTimeout(r, 300));
-    useProceduralAudio(song.display);
+    useProceduralAudio(song.display, background);
   }
 }
 
-function useProceduralAudio(label) {
+function useProceduralAudio(label, background) {
   const ctx = getAudioContext();
   if (ctx.state === 'suspended') ctx.resume();
 
   const bar = document.getElementById('loadingBar');
   const status = document.querySelector('.loading-text');
   status.textContent = 'Đang tạo nhạc nội bộ...';
-  bar.style.width = '30%';
+  if (!background) bar.style.width = '30%';
 
   setTimeout(() => {
     try {
@@ -2573,8 +2580,12 @@ document.querySelectorAll('.demo-song').forEach(el => {
   });
 });
 
-// Auto-load the first demo song
-loadDefaultAudio('come-my-way');
+// Show menu immediately, load audio in background
+showScreen('menuScreen');
+fileInputLabel.textContent = 'Đang tải Come My Way...';
+fileInputLabel.classList.add('has-file');
+startBtn.disabled = true;
+setTimeout(() => loadDefaultAudio('come-my-way', true), 300);
 
 })();
 </script>
