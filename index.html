@@ -890,9 +890,9 @@ h1 {
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous" onerror="console.warn('MediaPipe hands CDN failed to load')"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous" onerror="console.warn('MediaPipe camera_utils CDN failed to load')"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous" onerror="console.warn('MediaPipe drawing_utils CDN failed to load')"></script>
 
 <script>
 (function() {
@@ -1062,6 +1062,14 @@ function detectBeats(audioBuffer) {
   const x = audioBuffer.getChannelData(0);
   const sr = audioBuffer.sampleRate;
   const diff = CONFIG.difficulty || 'medium';
+
+  if (x.length < 2048 || sr < 1000) {
+    const dur = audioBuffer.duration;
+    const interval = 60 / 130;
+    const fb = [];
+    for (let t = interval; t < dur - 0.5; t += interval) fb.push(t);
+    return fb.length > 0 ? fb : [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+  }
 
   const N = 1024;
   const H = 512;
@@ -1378,15 +1386,24 @@ const DEMO_SONGS = {
   },
 };
 
-async function fetchWithTimeout(url, ms = 8000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms);
-  try {
-    const resp = await fetch(url, { signal: controller.signal });
-    return resp;
-  } finally {
-    clearTimeout(id);
+async function fetchWithProgress(url, onProgress) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const total = parseInt(resp.headers.get('Content-Length') || '0');
+  const reader = resp.body.getReader();
+  const chunks = [];
+  let loaded = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    if (onProgress && total > 0) {
+      onProgress(loaded / total);
+    }
   }
+  const blob = new Blob(chunks, { type: resp.headers.get('Content-Type') || 'application/octet-stream' });
+  return blob;
 }
 
 function generateProceduralAudio(ctx) {
@@ -1432,10 +1449,16 @@ async function loadDefaultAudio(songId) {
   fileInputLabel.textContent = 'Đang tải ' + song.display + '...';
   fileInputLabel.classList.add('has-file');
   showLoading();
+  const loadStatus = document.querySelector('.loading-text');
+  const bar = document.getElementById('loadingBar');
   try {
-    const resp = await fetchWithTimeout(song.url, 8000);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const blob = await resp.blob();
+    loadStatus.textContent = 'Đang tải ' + song.display + ' (' + (song.difficulty === 'hard' ? '23MB' : '14MB') + ')...';
+    bar.style.width = '5%';
+    const blob = await fetchWithProgress(song.url, (pct) => {
+      bar.style.width = Math.round(pct * 70) + '%';
+    });
+    bar.style.width = '75%';
+    loadStatus.textContent = 'Đang giải mã nhạc...';
     const file = new File([blob], song.name, { type: 'audio/flac' });
     const result = await loadAndAnalyzeMusic(file);
     state.audioBuffer = result.audioBuffer;
@@ -1448,7 +1471,11 @@ async function loadDefaultAudio(songId) {
     menuPlayer.offset = 0;
     menuPlay();
   } catch (err) {
-    console.warn('Failed to load remote audio, using procedural:', err);
+    console.warn('Failed to load remote audio:', err);
+    showToast('Tải nhạc thất bại, đang chuyển sang chế độ offline...');
+    showLoading();
+    document.querySelector('.loading-text').textContent = 'Đang chuyển sang chế độ offline...';
+    await new Promise(r => setTimeout(r, 500));
     useProceduralAudio(song.display);
   }
 }
@@ -1478,6 +1505,7 @@ function useProceduralAudio(label) {
 
       startBtn.disabled = false;
       startBtn.textContent = 'Start Game';
+      startBtn.title = '';
       fileInputLabel.textContent = 'Procedural Beat (offline)';
       fileInputLabel.classList.add('has-file');
       showScreen('menuScreen');
@@ -1487,7 +1515,11 @@ function useProceduralAudio(label) {
       console.error('Procedural audio failed:', e);
       fileInputLabel.textContent = 'Chọn file nhạc (MP3 / WAV / FLAC)';
       fileInputLabel.classList.remove('has-file');
+      startBtn.disabled = false;
+      startBtn.textContent = 'Thử lại - Chọn offline';
+      startBtn.title = 'Nhấn để thử lại với chế độ offline';
       showScreen('menuScreen');
+      showToast('Không thể tạo nhạc nội bộ. Vui lòng tải file nhạc của bạn.');
     }
   }, 100);
 }
