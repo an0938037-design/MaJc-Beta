@@ -1280,7 +1280,7 @@ function generateNotes(beats) {
 
   // Difficulty settings
   const diff = CONFIG.difficulty || 'medium';
-  const skipProb = diff === 'easy' ? 0.35 : diff === 'hard' ? 0.05 : 0.15;
+  const skipProb = diff === 'easy' ? 0.3 : diff === 'hard' ? 0 : 0;
   const maxRepeat = diff === 'easy' ? 1 : diff === 'hard' ? 4 : 2;
   const patternChance = diff === 'easy' ? 0.4 : 0.0;
   let patternIndex = 0;
@@ -1313,6 +1313,19 @@ function generateNotes(beats) {
       hit: false,
       result: null,
     });
+
+    // Hard: 10% chance to add an extra note at half-beat
+    if (diff === 'hard' && i + 1 < beats.length) {
+      const halfTime = (beats[i] + beats[i + 1]) / 2;
+      if (Math.random() < 0.10 && halfTime - beats[i] > 0.12) {
+        notes.push({
+          time: halfTime,
+          lane: Math.floor(Math.random() * CONFIG.lanes),
+          hit: false,
+          result: null,
+        });
+      }
+    }
   }
 
   const maxConcurrent = diff === 'easy' ? 1 : diff === 'hard' ? 3 : 2;
